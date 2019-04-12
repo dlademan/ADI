@@ -1,0 +1,10 @@
+# folders to ignore
+__pycache__/
+adi.build/
+adi.dist/
+old-code/
+.idea/
+.git/
+
+# files to ignore
+org.txt

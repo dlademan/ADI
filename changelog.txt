@@ -1,3 +1,7 @@
+V 1.1.2
+    - Added .gitignore
+    - Changed Logging start message
+
 V 1.1.1
     - Added Check if installed to menus
         - only available if pkl for asset exists and asset is not installed
