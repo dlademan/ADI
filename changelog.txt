@@ -1,0 +1,20 @@
+V 1.1.0
+    - Program remembers size of main window
+    - Code changes to AssetItem
+        - size to _size, size property now returns a string when calling asset.size
+        - properties added to simplify data retrieval
+            - zipStr, pklStr, installedStr, installedTimeStr
+        - Added a productName attribute to AssetItem that is a formatted version of name for readability
+        - fileList stored inside AssetItem now, will load from file on creation if pkl exists.
+    - Config
+        - Converted Config class to use configobj and create an ini file for settings
+        - Config file now located in local folder dependant on OS
+            - windows ~/AppData/Roaming/ADI/
+            - mac     ~/Library/Application Support/ADI/
+            - linux   ~/.ADI/
+        - If no config file is found, open config frame to set folders
+    - Fixed sorting of trees
+
+
+V 1.0.0
+    Initial Release

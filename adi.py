@@ -7,8 +7,8 @@ class ADI(wx.App):
 
     def OnInit(self):
         frame = MainFrame(None, -1, "Alternative Daz Importer")
-        frame.Show(True)
-        self.SetTopWindow(frame)
+        # frame.Show(True)
+        # self.SetTopWindow(frame)
         return True
 
 

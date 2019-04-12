@@ -1,13 +1,13 @@
 from datetime import datetime
+from pathlib import Path
 import logging
 import subprocess
 import wx
 
-import manage
 from Asset import AssetList
-from Queue import QueueList
+from QueueADI import QueueList
 from Config import Config
-from ConfigFrame import ConfigFrame
+from SetupFrame import SetupFrame
 from OnTree import OnTreeSel, OnTreeContext
 from OnList import OnListSel, OnListContext, OnQueueContext
 from Tree import FolderTree, ZipTree
@@ -26,12 +26,14 @@ class MainFrame(wx.Frame):
         logging.basicConfig(level=logging.WARNING, format='%(asctime)s - %(levelname)s - %(message)s')
         logging.debug("Logging Started")
 
-        wx.Frame.__init__(self, parent, id, title, wx.DefaultPosition, wx.Size(950, 800), style=wx.DEFAULT_FRAME_STYLE)
-        self.config = Config()
+        wx.Frame.__init__(self, parent, id, title, wx.DefaultPosition, (950, 800), style=wx.DEFAULT_FRAME_STYLE)
+        self.Bind(wx.EVT_CLOSE, self.OnClose)
+
+        self.config = Config(self)
         self.assets = AssetList(self)
         self.queue = QueueList(self)
         if not self.queue.inProgress:
-            self.queue = QueueList(self, clear=True)
+            self.queue = QueueList(self, clear=self.config.clearQueue)
 
         self.initMenubar()
         self.initToolbar()
@@ -40,6 +42,20 @@ class MainFrame(wx.Frame):
         self.GUIUpdate()
 
         self.Centre()
+
+        if self.config.firstTime:
+            self.setupWindow = SetupFrame(self)
+        else:
+            self.SetSize(size=self.config.winSize)
+            self.Show()
+
+    def SaveCurrentSize(self, event):
+        self.config.winSize = self.GetSize()
+        self.config.save()
+
+    def OnClose(self, event):
+        self.SaveCurrentSize(event)
+        event.Skip()
 
     def OnLeftClick(self, event):
         item = event.GetItem()
@@ -87,55 +103,42 @@ class MainFrame(wx.Frame):
 
     @staticmethod
     def createPkl(asset):
-        asset.createPkl()
+        asset.createFileList()
 
     def OnOpenLibrary(self, event, path=None):
         if not path:
             path = self.config.archive
         subprocess.Popen(r'explorer /select, ' + str(path))
 
-    def OnQuit(self, event):
-        self.Close()
-
-    def OnClose(self, event):
-        self.DestroyChildren()
-        wx.Window.Destroy(self)
-
     def LaunchAbout(self, event):
         logging.debug("launch about")
 
     def LaunchSettings(self, event):
         logging.debug("Config window opened")
-        self.configWindow = ConfigFrame(self)
+        self.setupWindow = SetupFrame(self)
 
     # installation/uninstallation
     def installAsset(self, event, asset):
-        logging.debug("Installing " + asset.name)
-        manage.installAsset(self, asset.zip)
+        logging.debug("Installing " + asset.productName)
+        asset.install(self, self.config.library)
 
-        self.gaugeQueue.SetRange(1)
-        self.gaugeQueue.SetValue(1)
         i = self.assets.getIndex(asset)
         self.assets.update(i, True, datetime.now())
+
         self.GUIUpdate()
 
     def uninstallAsset(self, event, asset):
-        logging.debug("Uninstalling " + asset.name)
-        manage.uninstallAsset(self, asset.pkl)
-
-        self.gaugeQueue.SetRange(1)
-        self.gaugeQueue.SetValue(1)
+        logging.debug("Uninstalling " + asset.productName)
+        asset.uninstall(self, self.config.library)
 
         i = self.assets.getIndex(asset)
         self.assets.update(i, False, None)
         self.GUIUpdate()
 
-    #
-    #####################################
-    #
     def StartQueue(self, event):
         self.queue.inProgress = True
         self.queue.save()
+        self.rightNotebook.SetSelection(1)
         logging.debug("Starting Queued Processes")
         i = 0
         queueLength = 0
@@ -144,12 +147,12 @@ class MainFrame(wx.Frame):
                 queueLength += 1
         self.gaugeQueue.SetRange(queueLength)
         self.gaugeQueue.SetValue(0)
-        for qItem in self.queue.list:
-            self.gaugeQueue.SetValue(i+1)
-            if self.queue.list[i].status == 3: #skip finished queue items
+        # TODO determine why gaugeQueue is set to max after one iteration
+        for i, qItem in enumerate(self.queue.list):
+            if self.queue.list[i].status == 3:  # skip finished queue items
                 continue
-            self.queue.list[i].status = 1  ##['Queued', 'In Progress', 'Finished', 'Failed']##
-            self.queue.list[i].updateText()
+            # ['Queued', 'In Progress', 'Finished', 'Failed']
+            self.queue.list[i].status = 1
             self.queue.save()
             self.GUIQueue()
 
@@ -158,8 +161,8 @@ class MainFrame(wx.Frame):
             else:
                 self.uninstallAsset(event, qItem.asset)
             self.queue.updateStatus(i, 2)
+            self.gaugeQueue.SetValue(i + 1)
             self.GUIQueue()
-            i += 1
 
         self.queue.inProgress = False
         logging.debug("Queued Processes Finished")
@@ -170,14 +173,14 @@ class MainFrame(wx.Frame):
 
     def AddToQueue(self, event, asset, process):
         for queueItem in self.queue.list:
-            if asset.name == queueItem.asset.name and queueItem.status == 0:
-                logging.warning("Asset already queued for process, nothing added to queue")
+            if asset.fileName == queueItem.asset.fileName and queueItem.status == 0:
+                logging.warning(asset.productName + " already queued for process, nothing added to queue")
                 return
 
         if process:
-            logging.debug("Add " + asset.name + " to queue to be installed.")
+            logging.debug("Add " + asset.productName + " to queue to be installed.")
         else:
-            logging.debug("Add " + asset.name + " to queue to be uninstalled.")
+            logging.debug("Add " + asset.productName + " to queue to be uninstalled.")
 
         self.queue.append(asset, process)
         self.GUIQueue()
@@ -192,67 +195,32 @@ class MainFrame(wx.Frame):
         i = 0
         for item in self.assets.list:
             if item.installed:
-                if item.zip:
-                    zipText = "Exists"
-                else:
-                    zipText = "DNE"
-
-                if item.pkl:
-                    pklText = "Exists"
-                else:
-                    pklText = "DNE"
-                installedTime = item.installedTime
-
-                self.installedCtrl.InsertItem(i, item.name)
-                self.installedCtrl.SetItem(i, 1, zipText)
-                self.installedCtrl.SetItem(i, 2, pklText)
-                self.installedCtrl.SetItem(i, 3, f"{installedTime:%Y-%m-%d %H:%M}")
+                self.installedCtrl.InsertItem(i, item.productName)
+                self.installedCtrl.SetItem(i, 1, item.zipStr)
+                self.installedCtrl.SetItem(i, 2, item.pklStr)
+                self.installedCtrl.SetItem(i, 3, item.installedTimeStr)
                 i += 1
 
     def GUIAssets(self):
         self.assetCtrl.DeleteAllItems()
-        i = 0
-        for item in self.assets.list:
-            if item.zip:
-                zipText = "Exists"
-            else:
-                zipText = "N/A"
-
-            if item.pkl:
-                pklText = "Exists"
-            else:
-                pklText = "N/A"
-
-            self.assetCtrl.InsertItem(i, item.name)
-            self.assetCtrl.SetItem(i, 1, zipText)
-            self.assetCtrl.SetItem(i, 2, pklText)
-            self.assetCtrl.SetItem(i, 3, item.installedText)
-            self.assetCtrl.SetItem(i, 4, item.getSize())
-            i += 1
+        for i, item in enumerate(self.assets.list):
+            self.assetCtrl.InsertItem(i, item.productName)
+            self.assetCtrl.SetItem(i, 1, item.zipStr)
+            self.assetCtrl.SetItem(i, 2, item.pklStr)
+            self.assetCtrl.SetItem(i, 3, item.installedStr)
+            self.assetCtrl.SetItem(i, 4, item.size)
 
     def GUIQueue(self):
         self.queueCtrl.DeleteAllItems()
-        i = 0
-        for item in self.queue.list:
-            self.queueCtrl.InsertItem(i, item.asset.name)
-            self.queueCtrl.SetItem(i, 1, item.processText)
-            self.queueCtrl.SetItem(i, 2, item.asset.installedText)
-            self.queueCtrl.SetItem(i, 3, item.statusText)
-            i += 1
-
-    #
-    # def RemoveFromQueue(self, event):
-    #	_MyFrameQueue.RemoveFromQueue(self, event)
-
-    ####################################
+        for i, item in enumerate(self.queue.list):
+            self.queueCtrl.InsertItem(i, item.asset.productName)
+            self.queueCtrl.SetItem(i, 1, item.processStr)
+            self.queueCtrl.SetItem(i, 2, item.asset.installedStr)
+            self.queueCtrl.SetItem(i, 3, item.statusStr)
 
     def UpdateLibrary(self, event):
         logging.debug('Updating Library Tree')
         self.tree.make()
-
-    def ResetLibrary(self, event):
-        logging.debug('Delete Library Contents')
-        manage.resetLibrary(self)
 
     def createMenuOption(self, event, parentmenu, label, method, arg1=None, arg2=None, arg3=None, arg4=None):
         """event, parentmenu, label, method, arg1, arg2, arg3"""
@@ -445,7 +413,7 @@ class MainFrame(wx.Frame):
         self.queueCtrl.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.OnQueueContext)
 
         self.rightNotebook.AddPage(self.queueCtrl, "Queue")
-        self.zipTree.Bind(wx.EVT_TREE_SEL_CHANGED, self.OnLeftClick)
+        #self.zipTree.Bind(wx.EVT_TREE_SEL_CHANGED, self.OnLeftClick)
 
         ##################
 

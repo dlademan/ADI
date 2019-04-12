@@ -5,14 +5,14 @@ from pathlib import Path
 def OnListSel(self, event):
     item = event.GetItem()
     for i in self.assets.list:
-        if item.GetText() == i.name:
+        if item.GetText() == i.productName:
             self.selAsset = i
 
     p = self.selAsset.pkl
     z = self.selAsset.zip
 
     if z.exists():
-        self.size.SetLabel('Size: ' + self.selAsset.getSize())
+        self.size.SetLabel('Size: ' + self.selAsset.size)
         self.zipExists.SetLabel('Zip: Exists')
         self.button3.Enable()
     else:
@@ -20,7 +20,7 @@ def OnListSel(self, event):
         self.zipExists.SetLabel('Zip: N/A')
         self.button3.Disable()
 
-    if p.exists:
+    if p.exists():
         self.pickleExists.SetLabel('Pickle: Exists')
         self.button1.Enable()
         self.button2.Enable()
@@ -46,7 +46,7 @@ def OnListContext(self, event):
     popupMenu = wx.Menu()
 
     for i in self.assets.list:
-        if item.GetText() == i.name:
+        if item.GetText() == i.productName:
             asset = i
 
     if asset is None:
@@ -57,7 +57,7 @@ def OnListContext(self, event):
     p = asset.pkl
 
     for asset in self.assets.list:
-        if item.GetText() == asset.name:
+        if item.GetText() == asset.productName:
             if p.exists() and asset.installed:
                 self.createMenuOption(event, popupMenu, 'Uninstall', self.uninstallAsset, event, asset)
                 self.createMenuOption(event, popupMenu, 'Queue Uninstall', self.AddToQueue, event, asset, False)
@@ -73,6 +73,10 @@ def OnListContext(self, event):
 
             if p.exists() or z.exists():
                 self.createMenuOption(event, popupMenu, 'Open Location', self.OnOpenLibrary, event, asset.path)
+
+            if p.exists():
+                self.createMenuOption(event, popupMenu, 'Check if Installed',
+                                      asset.detectInstalled, self, self.config.library)
 
             self.PopupMenu(popupMenu, event.GetPoint())
 

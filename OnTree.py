@@ -8,20 +8,19 @@ def OnTreeSel(self, event):
     self.selAsset = asset
 
     for i in self.assets.list:
-        if asset.name == i.name:
+        if asset.fileName == i.fileName:
             asset = i
 
     self.tree.Expand(self.item)
-    self.name.SetLabel(asset.name)
+    self.name.SetLabel(asset.productName)
     self.curPath.SetLabel(str(asset.path.parent))
-    if asset.zip:
+    if asset.zip.exists():
         self.zipTree.remake(asset.zip)
     else:
         self.zipTree.remake()
 
     ###
     if asset.path.is_dir():
-        self.name.SetLabel(asset.path.stem)
         self.curPath.SetLabel(str(asset.path.parent))
         self.size.Hide()
         self.installedText.Hide()
@@ -38,8 +37,8 @@ def OnTreeSel(self, event):
         self.pickleExists.Show()
 
     ####
-    if asset.zip:
-        self.size.SetLabel('Size: ' + asset.getSize())
+    if asset.zip.exists():
+        self.size.SetLabel('Size: ' + asset.size)
         self.zipExists.SetLabel('Zip: Exists')
         self.button3.Enable()
     else:
@@ -52,17 +51,17 @@ def OnTreeSel(self, event):
     else:
         self.installedText.SetLabel('Installed: False')
     ####
-    if asset.pkl:
+    if asset.pkl.exists():
         self.pickleExists.SetLabel('Pickle: Exists')
     else:
         self.pickleExists.SetLabel('Pickle: False')
     ####
-    if asset.installed and asset.pkl:
+    if asset.installed and asset.pkl.exists():
         self.button1.SetLabel('Queue Uninstall')
         self.button1.Enable()
         self.button2.SetLabel('Uninstall')
         self.button2.Enable()
-    elif not asset.installed and asset.zip:
+    elif not asset.installed and asset.zip.exists():
         self.button1.SetLabel('Queue Install')
         self.button1.Enable()
         self.button2.SetLabel('Install')
@@ -97,13 +96,9 @@ def OnTreeContext(self, event):
             self.createMenuOption(event, popupmenu, 'Install', self.installAsset, event, asset)
             self.createMenuOption(event, popupmenu, 'Queue Install', self.AddToQueue, event, asset, True)
 
-        if z.exists() and not p.exists():
-            self.createMenuOption(event, popupmenu, 'Create Pkl', self.createPkl, event, asset)
-
         if not path.is_dir():
             self.createMenuOption(event, forcemenu, 'Install', self.installAsset, event, asset)
             self.createMenuOption(event, forcemenu, 'Uninstall', self.uninstallAsset, event, asset)
-            self.createMenuOption(event, forcemenu, 'Create Pkl', self.createPkl, event, asset)
             popupmenu.AppendSubMenu(forcemenu, '&Force')
 
     self.createMenuOption(event, popupmenu, 'Open Location', self.OnOpenLibrary, event, asset.path)

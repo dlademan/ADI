@@ -1,15 +1,12 @@
 from zipfile import ZipFile
 
-import pickle  # python modules
 import wx
+import logging
 
 from Asset import AssetItem
 
 
 class FolderTree(wx.TreeCtrl):
-    '''Our customized TreeCtrl class'''
-
-    assets = []
 
     def __init__(self, parent, archive, id, position, size, style, main):
         wx.TreeCtrl.__init__(self, parent, id, position, size, style)
@@ -19,57 +16,68 @@ class FolderTree(wx.TreeCtrl):
 
     def make(self):
         self.DeleteAllItems()
-        asset = AssetItem(self.path.stem, self.main.config.archive)
+        asset = AssetItem(self.main.config.archive)
         rootNode = self.AddRoot(self.path.name, data=asset)
         self.populate(rootNode)
 
     def populate(self, curNode):
         skip = []
         subList = self.directory(self.GetItemData(curNode).path)  # list of Path objects in current folder
+        nodeList = []
         for subDir in subList:
             if subDir.stem in skip:
                 continue
             elif subDir.is_dir():
-                asset = AssetItem(subDir.stem, subDir)
-                nextNode = self.AppendItem(curNode, subDir.name, -1, -1, asset)
+                asset = AssetItem(subDir)
+                nextNode = self.AppendItem(curNode, asset.productName, -1, -1, asset)
+                nodeList.append(nextNode)
                 self.SetItemHasChildren(nextNode, True)
                 self.populate(nextNode)
-            elif subDir.suffix == '.pickle' and subDir.with_suffix('.zip').exists():
+            elif subDir.suffix == '.pkl' and subDir.with_suffix('.zip').exists():
                 asset = self.main.assets.append(subDir.stem, subDir.with_suffix('.zip'))
                 skip.append(subDir.stem)  # skip zip of same name
-                self.AppendItem(curNode, subDir.stem, -1, -1, asset)
-            elif subDir.suffix == '.pickle' or subDir.suffix == '.zip':
+                nextNode = self.AppendItem(curNode, asset.productName, -1, -1, asset)
+                nodeList.append(nextNode)
+            elif subDir.suffix == '.pkl' or subDir.suffix == '.zip':
                 asset = self.main.assets.append(subDir.stem, subDir)
-                self.AppendItem(curNode, subDir.stem, -1, -1, asset)
+                nextNode = self.AppendItem(curNode, asset.productName, -1, -1, asset)
+                nodeList.append(nextNode)
 
+        for node in nodeList:
+            self.SortChildren(node)
+
+    # TODO make this work
     def OnCompareItems(self, item1, item2):
-        asset1 = self.GetItemData(item1)
-        asset2 = self.GetItemData(item2)
+        logging.debug("OnCompareItems inside FolderTree")
+        text1 = self.GetItemText(item1)
+        text2 = self.GetItemText(item2)
+        isDir1 = self.GetItemData(item1).path.is_dir()
+        isDir2 = self.GetItemData(item2).path.is_dir()
 
-        if asset1.path.is_dir() and asset2.path.is_dir():
-            if asset1.name < asset2.name:
+        if isDir1 and isDir2:
+            if text1 < text2:
                 return -1
-            elif asset1.name == asset2.name:
+            elif text1 == text2:
                 return 0
             else:
                 return 1
-        elif asset1.path.is_dir() and not asset2.path.is_dir():
+        elif isDir1 and not isDir2:
             return -1
-        elif not asset1.path.is_dir() and asset2.path.is_dir():
+        elif not isDir1 and isDir2:
             return 1
         else:
-            if asset1.name < asset2.name:
+            if text1 < text2:
                 return -1
-            elif asset1.name == asset2.name:
+            elif text1 == text2:
                 return 0
             else:
                 return 1
 
     @staticmethod
-    def directory(dir):
+    def directory(directory):
         """crawls the root folder of library to populate"""
 
-        root = [x for x in dir.iterdir()]
+        root = [x for x in directory.iterdir()]
         return root
 
 
@@ -125,7 +133,7 @@ class ZipTree(wx.TreeCtrl):
         for node in nodeList:
             self.SortChildren(node)
 
-    def remake(self, path=False):
+    def remake(self, path=None):
         self.DeleteAllItems()
         rootNode = self.AddRoot('zipRoot')
         if not path: return
@@ -133,10 +141,6 @@ class ZipTree(wx.TreeCtrl):
             self.file = ZipFile(path)
             self.populate(rootNode, False)
             self.file.close()
-        elif path.suffix == ".pickle":
-            with open(path, 'rb') as f:
-                self.file = pickle.load(f)
-        # self.populate(rootNode, True)
 
     def OnCompareItems(self, item1, item2):
         text1 = self.GetItemText(item1)
@@ -145,20 +149,12 @@ class ZipTree(wx.TreeCtrl):
         isDir2 = self.GetChildrenCount(item2) > 1
 
         if isDir1 and isDir2:
-            if text1 < text2:
-                return -1
-            elif text1 == text2:
-                return 0
-            else:
-                return 1
-        elif isDir1 and not isDir2:
-            return -1
-        elif not isDir1 and isDir2:
-            return 1
-        else:
-            if text1 < text2:
-                return -1
-            elif text1 == text2:
-                return 0
-            else:
-                return 1
+            if text1 < text2: return -1
+            elif text1 == text2: return 0
+            else: return 1
+        elif isDir1 and not isDir2: return -1
+        elif not isDir1 and isDir2: return 1
+
+        if text1 < text2: return -1
+        elif text1 == text2: return 0
+        else: return 1

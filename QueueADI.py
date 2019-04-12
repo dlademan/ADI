@@ -64,7 +64,6 @@ class QueueList(object):
         self.list[i].status = status
         if status == 2:
             self.list[i].finishedTime = datetime.now()
-        self.list[i].updateText()
         self.save()
 
 
@@ -75,19 +74,19 @@ class Item(object):
         self.asset = asset
         self.process = process
         self.status = status
-        self.statusText = "Queued"
-        self.processText = "Install"
-        self.updateText()
 
         # defaulted
         self.queuedTime = queuedTime
         self.finishedTime = finishedTime
 
-    def updateText(self):
-        if self.process:
-            self.processText = "Install"
-        else:
-            self.processText = "Uninstall"
-
+    @property
+    def statusStr(self):
         statusList = ['Queued', 'In Progress', 'Finished', 'Failed']
-        self.statusText = statusList[self.status]
+        return statusList[self.status]
+
+    @property
+    def processStr(self):
+        if self.process:
+            return "Install"
+        else:
+            return"Uninstall"
