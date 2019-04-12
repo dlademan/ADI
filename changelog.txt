@@ -1,3 +1,7 @@
+V 1.1.1
+    - Added Check if installed to menus
+        - only available if pkl for asset exists and asset is not installed
+
 V 1.1.0
     - Program remembers size of main window
     - Code changes to AssetItem

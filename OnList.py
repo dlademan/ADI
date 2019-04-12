@@ -74,7 +74,7 @@ def OnListContext(self, event):
             if p.exists() or z.exists():
                 self.createMenuOption(event, popupMenu, 'Open Location', self.OnOpenLibrary, event, asset.path)
 
-            if p.exists():
+            if p.exists() and not asset.installed:
                 self.createMenuOption(event, popupMenu, 'Check if Installed',
                                       asset.detectInstalled, self, self.config.library)
 

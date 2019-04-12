@@ -101,6 +101,10 @@ def OnTreeContext(self, event):
             self.createMenuOption(event, forcemenu, 'Uninstall', self.uninstallAsset, event, asset)
             popupmenu.AppendSubMenu(forcemenu, '&Force')
 
+        if p.exists() and not installed:
+            self.createMenuOption(event, popupmenu, 'Check if Installed',
+                                  asset.detectInstalled, self, self.config.library)
+
     self.createMenuOption(event, popupmenu, 'Open Location', self.OnOpenLibrary, event, asset.path)
 
     self.PopupMenu(popupmenu, event.GetPoint())  # show menu at cursor
