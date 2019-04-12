@@ -81,9 +81,9 @@ class MainFrame(wx.Frame):
 
     def button1Action(self, event):
         if self.button1.GetLabel() == "Queue Install":
-            self.AddToQueue(event, self.selAsset, True)
+            self.AddToQueue(self.selAsset, True)
         elif self.button1.GetLabel() == "Queue Uninstall":
-            self.AddToQueue(event, self.selAsset, False)
+            self.AddToQueue(self.selAsset, False)
         else:
             logging.warning("No Action performed on button1 press")
 
@@ -135,6 +135,28 @@ class MainFrame(wx.Frame):
         self.assets.update(i, False, None)
         self.GUIUpdate()
 
+    def queueAll(self, directory, process):
+        self.rightNotebook.SetSelection(1)
+        for asset in self.assets.list:
+            if str(directory) in str(asset.path.parent):
+                if process and not asset.installed:
+                    self.AddToQueue(asset, process)
+                elif not process and asset.installed:
+                    self.AddToQueue(asset, process)
+
+    def detectAll(self, directory=None):
+        if directory is None:
+            directory = self.config.library
+        for asset in self.assets.list:
+            if asset.installed:
+                logging.warning(asset.productName + " already installed, skipping detection")
+                continue
+            if str(directory) in str(asset.path.parent):
+                asset.detectInstalled(self, self.config.library)
+                asset.installed = True
+                asset.installedTime = datetime.now()
+        self.assets.save()
+
     def StartQueue(self, event):
         self.queue.inProgress = True
         self.queue.save()
@@ -149,7 +171,7 @@ class MainFrame(wx.Frame):
         self.gaugeQueue.SetValue(0)
         # TODO determine why gaugeQueue is set to max after one iteration
         for i, qItem in enumerate(self.queue.list):
-            if self.queue.list[i].status == 3:  # skip finished queue items
+            if self.queue.list[i].status == 2:  # skip finished queue items
                 continue
             # ['Queued', 'In Progress', 'Finished', 'Failed']
             self.queue.list[i].status = 1
@@ -171,7 +193,8 @@ class MainFrame(wx.Frame):
         self.queueCtrl.DeleteAllItems()
         self.queue = QueueList(self, clear=True)
 
-    def AddToQueue(self, event, asset, process):
+    def AddToQueue(self, asset, process):
+        self.rightNotebook.SetSelection(1)
         for queueItem in self.queue.list:
             if asset.fileName == queueItem.asset.fileName and queueItem.status == 0:
                 logging.warning(asset.productName + " already queued for process, nothing added to queue")
@@ -242,30 +265,30 @@ class MainFrame(wx.Frame):
     def initMenubar(self):
         fileMenu = wx.Menu()  # file
 
-        fileUpdate = wx.MenuItem(fileMenu, wx.ID_ANY, '&Update Library')
-        # self.Bind(wx.EVT_MENU, self.UpdateLibrary, fileUpdate)
-
         fileQuit = wx.MenuItem(fileMenu, wx.ID_EXIT, '&Quit')
-        # self.Bind(wx.EVT_MENU, self.OnQuit, fileQuit)
+        self.Bind(wx.EVT_MENU, self.OnClose, fileQuit)
 
-        fileMenu.Append(fileUpdate)
-        fileMenu.AppendSeparator()
         fileMenu.Append(fileQuit)
+
+        dataMenu = wx.Menu()
+
+        dataDetect = wx.MenuItem(dataMenu, -1, '&Detect All Assets')
+        self.Bind(wx.EVT_MENU, self.detectAll, dataDetect)
+        dataUpdate = wx.MenuItem(fileMenu, wx.ID_ANY, '&Update Library')
+        self.Bind(wx.EVT_MENU, self.UpdateLibrary, dataUpdate)
+
+        dataMenu.Append(dataDetect)
+        dataMenu.Append(dataUpdate)
 
         viewMenu = wx.Menu()  # view
         viewSettings = wx.MenuItem(viewMenu, wx.ID_ANY, '&Settings\tCtrl+S')
         self.Bind(wx.EVT_MENU, self.LaunchSettings, viewSettings)
         viewMenu.Append(viewSettings)
 
-        #helpMenu = wx.Menu()  # help
-        #helpAbout = wx.MenuItem(viewMenu, wx.ID_ANY, '&About\tCtrl+A')
-        # self.Bind(wx.EVT_MENU, self.LaunchAbout, helpAbout)
-        #helpMenu.Append(helpAbout)
-
         menubar = wx.MenuBar()
         menubar.Append(fileMenu, '&File')
+        menubar.Append(dataMenu, '&Data')
         menubar.Append(viewMenu, '&View')
-        #menubar.Append(helpMenu, '&Help')
         self.SetMenuBar(menubar)
 
     def initToolbar(self):

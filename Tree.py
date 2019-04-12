@@ -48,7 +48,6 @@ class FolderTree(wx.TreeCtrl):
 
     # TODO make this work
     def OnCompareItems(self, item1, item2):
-        logging.debug("OnCompareItems inside FolderTree")
         text1 = self.GetItemText(item1)
         text2 = self.GetItemText(item2)
         isDir1 = self.GetItemData(item1).path.is_dir()

@@ -90,11 +90,11 @@ def OnTreeContext(self, event):
 
         if installed and p.exists():
             self.createMenuOption(event, popupmenu, 'Uninstall', self.uninstallAsset, event, asset)
-            self.createMenuOption(event, popupmenu, 'Queue Uninstall', self.AddToQueue, event, asset, False)
+            self.createMenuOption(event, popupmenu, 'Queue Uninstall', self.AddToQueue, asset, False)
 
         elif not installed and z.exists():
             self.createMenuOption(event, popupmenu, 'Install', self.installAsset, event, asset)
-            self.createMenuOption(event, popupmenu, 'Queue Install', self.AddToQueue, event, asset, True)
+            self.createMenuOption(event, popupmenu, 'Queue Install', self.AddToQueue, asset, True)
 
         if not path.is_dir():
             self.createMenuOption(event, forcemenu, 'Install', self.installAsset, event, asset)
@@ -104,6 +104,13 @@ def OnTreeContext(self, event):
         if p.exists() and not installed:
             self.createMenuOption(event, popupmenu, 'Check if Installed',
                                   asset.detectInstalled, self, self.config.library)
+    elif asset.path.is_dir():
+        self.createMenuOption(event, popupmenu, 'Queue all to be installed',
+                              self.queueAll, asset.path, True)
+        self.createMenuOption(event, popupmenu, 'Queue all to be uninstalled',
+                              self.queueAll, asset.path, False)
+        self.createMenuOption(event, popupmenu, 'Detect assets in directory',
+                              self.detectAll, asset.path)
 
     self.createMenuOption(event, popupmenu, 'Open Location', self.OnOpenLibrary, event, asset.path)
 

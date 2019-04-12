@@ -60,12 +60,12 @@ def OnListContext(self, event):
         if item.GetText() == asset.productName:
             if p.exists() and asset.installed:
                 self.createMenuOption(event, popupMenu, 'Uninstall', self.uninstallAsset, event, asset)
-                self.createMenuOption(event, popupMenu, 'Queue Uninstall', self.AddToQueue, event, asset, False)
+                self.createMenuOption(event, popupMenu, 'Queue Uninstall', self.AddToQueue, asset, False)
                 popupMenu.AppendSeparator()
 
             elif not asset.installed and z.exists():
                 self.createMenuOption(event, popupMenu, 'Install', self.installAsset, event, asset)
-                self.createMenuOption(event, popupMenu, 'Queue Install', self.AddToQueue, event, asset, True)
+                self.createMenuOption(event, popupMenu, 'Queue Install', self.AddToQueue, asset, True)
                 popupMenu.AppendSeparator()
 
             if z.exists() and not p.exists():

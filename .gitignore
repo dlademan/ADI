@@ -2,6 +2,7 @@
 __pycache__/
 adi.build/
 adi.dist/
+adi.release/
 old-code/
 .idea/
 .git/
