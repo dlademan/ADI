@@ -214,12 +214,12 @@ class AssetItem(object):
         if err: logging.warning("One or more files could not be found to be deleted")
         self._removeEmptyDirs(installPath)
 
-    def detectInstalled(self, parent, installPath):
+    def detectInstalled(self, parent):
         fileCount = 0
         totalCount = len(self.fileList)
 
         for member in self.fileList:
-            member = installPath / Path(member)
+            member = parent.config.library / Path(member)
             if member.exists():
                 fileCount += 1
 
@@ -235,6 +235,7 @@ class AssetItem(object):
             self.installedTime = None
             logging.debug(self.productName + " set to not installed")
 
+        parent.assets.save()
         parent.GUIUpdate()
 
     @property

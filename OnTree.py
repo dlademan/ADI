@@ -4,7 +4,15 @@ import wx, os, logging
 def OnTreeSel(self, event):
     # Get the selected item object
     self.item = event.GetItem()
-    asset = self.tree.GetItemData(self.item)
+    productName = self.tree.GetItemText(self.item)
+    asset = None
+    for member in self.assets.list:
+        if member.productName == productName:
+            asset = member
+            break
+    if asset is None:
+        asset = self.tree.GetItemData(self.item)
+    print(asset.productName)
     self.selAsset = asset
 
     for i in self.assets.list:
@@ -75,6 +83,9 @@ def OnTreeContext(self, event):
     # Get TreeItemData
     self.item = event.GetItem()
     asset = self.tree.GetItemData(self.item)
+    # for asset in self.assets.list:
+    #     if tempAsset.fileName == asset.fileName:
+    #         asset =
     self.selAsset = asset
 
     # Create menu
@@ -103,14 +114,14 @@ def OnTreeContext(self, event):
 
         if p.exists() and not installed:
             self.createMenuOption(event, popupmenu, 'Check if Installed',
-                                  asset.detectInstalled, self, self.config.library)
+                                  asset.detectInstalled, self)
     elif asset.path.is_dir():
         self.createMenuOption(event, popupmenu, 'Queue all to be installed',
                               self.queueAll, asset.path, True)
         self.createMenuOption(event, popupmenu, 'Queue all to be uninstalled',
                               self.queueAll, asset.path, False)
         self.createMenuOption(event, popupmenu, 'Detect assets in directory',
-                              self.detectAll, asset.path)
+                              self.detectAll, event, asset.path)
 
     self.createMenuOption(event, popupmenu, 'Open Location', self.OnOpenLibrary, event, asset.path)
 

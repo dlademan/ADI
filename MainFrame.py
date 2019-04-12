@@ -144,18 +144,16 @@ class MainFrame(wx.Frame):
                 elif not process and asset.installed:
                     self.AddToQueue(asset, process)
 
-    def detectAll(self, directory=None):
+    def detectAll(self, event, directory=None):
         if directory is None:
-            directory = self.config.library
+            directory = self.config.archive
         for asset in self.assets.list:
+
             if asset.installed:
                 logging.warning(asset.productName + " already installed, skipping detection")
                 continue
-            if str(directory) in str(asset.path.parent):
-                asset.detectInstalled(self, self.config.library)
-                asset.installed = True
-                asset.installedTime = datetime.now()
-        self.assets.save()
+            if str(directory) in str(asset.path):
+                asset.detectInstalled(self)
 
     def StartQueue(self, event):
         self.queue.inProgress = True

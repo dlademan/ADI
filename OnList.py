@@ -76,7 +76,7 @@ def OnListContext(self, event):
 
             if p.exists() and not asset.installed:
                 self.createMenuOption(event, popupMenu, 'Check if Installed',
-                                      asset.detectInstalled, self, self.config.library)
+                                      asset.detectInstalled, self)
 
             self.PopupMenu(popupMenu, event.GetPoint())
 
