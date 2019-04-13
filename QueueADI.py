@@ -27,7 +27,7 @@ class QueueList(object):
         if self.clear:
             return []
         elif self.path.exists():
-            logging.debug("Loading " + self.name + " from: " + str(self.path))
+            logging.info("Loading " + self.name + " from: " + str(self.path))
             with open(self.path, 'rb') as f:
                 return pickle.load(f)
         else:

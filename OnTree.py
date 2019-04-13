@@ -12,7 +12,6 @@ def OnTreeSel(self, event):
             break
     if asset is None:
         asset = self.tree.GetItemData(self.item)
-    print(asset.productName)
     self.selAsset = asset
 
     for i in self.assets.list:

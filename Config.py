@@ -9,7 +9,7 @@ import wx
 class Config():
 
     def __init__(self, parent, filename='config.ini'):
-        self.path = self._getConfigPath(filename)
+        self.path = self.getConfigPath() / Path(filename)
         self.parent = parent
 
         if self.path.exists():
@@ -57,17 +57,13 @@ class Config():
         self._confObj.write()
 
     @staticmethod
-    def _getConfigPath(filename):
+    def getConfigPath():
         sys = platform.system()
 
+        #logging.info("System detected as " + sys)
         if sys == 'Windows':
-            root = Path(os.getenv('APPDATA'))
-            path = Path('ADI/' + filename)
+            return Path(os.getenv('APPDATA') + '/ADI/')
         elif sys == 'Darwin':  # mac
-            root = Path('~/Library/Application Support/')
-            path = Path('ADI/' + filename)
+            return Path('~/Library/Application Support/ADI/')
         else:  # linux
-            root = Path('~/.ADI/')
-            path = Path(filename)
-
-        return root / path
+            return Path('~/.ADI/')

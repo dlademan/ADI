@@ -1,5 +1,5 @@
 from datetime import datetime
-from pathlib import Path
+import threading
 import logging
 import subprocess
 import wx
@@ -20,16 +20,19 @@ class MainFrame(wx.Frame):
     parent, id, title
     """
 
+    logger = logging.getLogger()
+    logger.setLevel(logging.DEBUG)
+
     def __init__(self, parent, id, title):
-        logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
-        logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(levelname)s - %(message)s')
-        logging.basicConfig(level=logging.WARNING, format='%(asctime)s - %(levelname)s - %(message)s')
-        logging.debug("ADI Started")
 
         wx.Frame.__init__(self, parent, id, title, wx.DefaultPosition, (950, 800), style=wx.DEFAULT_FRAME_STYLE)
         self.Bind(wx.EVT_CLOSE, self.OnClose)
 
         self.config = Config(self)
+        self.initLogger(self.logger)
+
+        logging.info("------------ ADI Started ------------")
+
         self.assets = AssetList(self)
         self.queue = QueueList(self)
         if not self.queue.inProgress:
@@ -40,7 +43,6 @@ class MainFrame(wx.Frame):
         self.initSplitter()
 
         self.GUIUpdate()
-
         self.Centre()
 
         if self.config.firstTime:
@@ -55,6 +57,7 @@ class MainFrame(wx.Frame):
 
     def OnClose(self, event):
         self.SaveCurrentSize(event)
+        logging.info("------------ ADI Closed -------------")
         event.Skip()
 
     def OnLeftClick(self, event):
@@ -119,8 +122,10 @@ class MainFrame(wx.Frame):
 
     # installation/uninstallation
     def installAsset(self, event, asset):
-        logging.debug("Installing " + asset.productName)
-        asset.install(self, self.config.library)
+        logging.info("Installing " + asset.productName)
+
+        installThread = threading.Thread(target=asset.install, args=[self, self.config.library])
+        installThread.start()
 
         i = self.assets.getIndex(asset)
         self.assets.update(i, True, datetime.now())
@@ -128,8 +133,10 @@ class MainFrame(wx.Frame):
         self.GUIUpdate()
 
     def uninstallAsset(self, event, asset):
-        logging.debug("Uninstalling " + asset.productName)
-        asset.uninstall(self, self.config.library)
+        logging.info("Uninstalling " + asset.productName)
+
+        uninstallThread = threading.Thread(target=asset.uninstall, args=[self, self.config.library])
+        uninstallThread.start()
 
         i = self.assets.getIndex(asset)
         self.assets.update(i, False, None)
@@ -150,24 +157,29 @@ class MainFrame(wx.Frame):
         for asset in self.assets.list:
 
             if asset.installed:
-                logging.warning(asset.productName + " already installed, skipping detection")
+                logging.info(asset.productName + " already installed, skipping detection")
                 continue
             if str(directory) in str(asset.path):
-                asset.detectInstalled(self)
+                detectThread = threading.Thread(target=asset.detectInstalled)
+                detectThread.start()
+
+    # todo threading here
+    def QueueThreadStart(self, event):
+        queueThread = threading.Thread(target=self.StartQueue, args=[event])
+        queueThread.start()
 
     def StartQueue(self, event):
         self.queue.inProgress = True
         self.queue.save()
         self.rightNotebook.SetSelection(1)
-        logging.debug("Starting Queued Processes")
+        logging.info("Starting Queued Processes")
         i = 0
         queueLength = 0
         for item in self.queue.list:
-            if item.status != 3:
+            if item.status != 2:
                 queueLength += 1
         self.gaugeQueue.SetRange(queueLength)
         self.gaugeQueue.SetValue(0)
-        # TODO determine why gaugeQueue is set to max after one iteration
         for i, qItem in enumerate(self.queue.list):
             if self.queue.list[i].status == 2:  # skip finished queue items
                 continue
@@ -185,7 +197,7 @@ class MainFrame(wx.Frame):
             self.GUIQueue()
 
         self.queue.inProgress = False
-        logging.debug("Queued Processes Finished")
+        logging.info("Queued Processes Finished")
 
     def ClearQueue(self, event):
         self.queueCtrl.DeleteAllItems()
@@ -199,9 +211,9 @@ class MainFrame(wx.Frame):
                 return
 
         if process:
-            logging.debug("Add " + asset.productName + " to queue to be installed.")
+            logging.info("Added " + asset.productName + " to queue to be installed.")
         else:
-            logging.debug("Add " + asset.productName + " to queue to be uninstalled.")
+            logging.info("Added " + asset.productName + " to queue to be uninstalled.")
 
         self.queue.append(asset, process)
         self.GUIQueue()
@@ -240,7 +252,7 @@ class MainFrame(wx.Frame):
             self.queueCtrl.SetItem(i, 3, item.statusStr)
 
     def UpdateLibrary(self, event):
-        logging.debug('Updating Library Tree')
+        logging.info('Updating Library Tree')
         self.tree.make()
 
     def createMenuOption(self, event, parentmenu, label, method, arg1=None, arg2=None, arg3=None, arg4=None):
@@ -308,7 +320,7 @@ class MainFrame(wx.Frame):
         settingsTool = toolbar.AddTool(wx.ID_PREFERENCES, 'Settings', wx.Bitmap('icons/settings.png'), 'Open settings')
 
         self.Bind(wx.EVT_TOOL, self.UpdateLibrary, updateTool)
-        self.Bind(wx.EVT_TOOL, self.StartQueue, startTool)
+        self.Bind(wx.EVT_TOOL, self.QueueThreadStart, startTool)
         self.Bind(wx.EVT_TOOL, self.ClearQueue, clearTool)
         self.Bind(wx.EVT_TOOL, self.OnOpenLibrary, openToolLibrary)
         self.Bind(wx.EVT_TOOL, self.LaunchSettings, settingsTool)
@@ -451,3 +463,16 @@ class MainFrame(wx.Frame):
 
         # Put the left and right panes into the split window
         self.splitterVert.SplitVertically(self.leftPanel, self.rightPanel)
+
+    def initLogger(self, logger):
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+
+        fh = logging.FileHandler(str(self.config.getConfigPath()) + '/log.txt')
+        fh.setLevel(logging.DEBUG)
+        fh.setFormatter(formatter)
+        logger.addHandler(fh)
+
+        ch = logging.StreamHandler()
+        ch.setLevel(logging.DEBUG)
+        ch.setFormatter(formatter)
+        logger.addHandler(ch)

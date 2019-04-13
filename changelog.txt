@@ -1,3 +1,11 @@
+V1.2.0
+    Features
+    - Threading implemented on file manipulation
+
+    Known Bugs
+    - Threading makes the progress bars go wonk, expect weird behavior
+    - Threading also makes status of items in queue change before they are actually finished
+
 V 1.1.4
     - Bugfixed the detect all menu option
     - When selecting a tree item it will now refer to the data in self.assets.list instead of the data inside the tree itself

@@ -25,7 +25,7 @@ class AssetList(object):
         entry = AssetItem(path, installed)
         for item in self.list:
             if entry.fileName == item.fileName:
-                logging.warning(entry.productName + " already in asset list, item not added.")
+                logging.info(entry.productName + " already in asset list, item not added.")
                 return entry
         self.list.append(entry)
         self.list.sort()
@@ -34,11 +34,11 @@ class AssetList(object):
 
     def load(self):
         if self.path.exists():
-            logging.debug("Loading " + self.name + " from: " + str(self.path))
+            logging.info("Loading " + self.name + " from: " + str(self.path))
             with open(self.path, 'rb') as f:
                 return pickle.load(f)
         else:
-            logging.debug("Could not find assets.pkl, empty list returned")
+            logging.info("Could not find assets.pkl, empty list returned")
             return []  # return empty list if not found
 
     def save(self):
@@ -149,7 +149,7 @@ class AssetItem(object):
 
     def createFileList(self):
         if not self.zip.exists():
-            logging.debug("Cannot open " + self.zip.name + " in " + self.zip.parent)
+            logging.warning("Cannot open " + self.zip.name + " in " + self.zip.parent)
             return
 
         zfile = ZipFile(self.zip)
