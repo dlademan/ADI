@@ -2,6 +2,7 @@ from zipfile import ZipFile
 
 import wx
 import logging
+import threading
 
 from Asset import AssetItem
 
@@ -12,7 +13,8 @@ class FolderTree(wx.TreeCtrl):
         wx.TreeCtrl.__init__(self, parent, id, position, size, style)
         self.path = archive
         self.main = main
-        self.make()
+        treeThread = threading.Thread(target=self.make(), args=[])
+        treeThread.start()
 
     def make(self):
         self.DeleteAllItems()
@@ -43,8 +45,10 @@ class FolderTree(wx.TreeCtrl):
                 nextNode = self.AppendItem(curNode, asset.productName, -1, -1, asset)
                 nodeList.append(nextNode)
 
+        self.SortChildren(curNode)
         for node in nodeList:
             self.SortChildren(node)
+
 
     # TODO make this work
     def OnCompareItems(self, item1, item2):

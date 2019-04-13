@@ -18,7 +18,6 @@ def OnTreeSel(self, event):
         if asset.fileName == i.fileName:
             asset = i
 
-    self.tree.Expand(self.item)
     self.name.SetLabel(asset.productName)
     self.curPath.SetLabel(str(asset.path.parent))
     if asset.zip.exists():

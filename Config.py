@@ -21,15 +21,16 @@ class Config():
             self.winSize = wx.Size((int(self._confObj['winSize'][0]),
                                     int(self._confObj['winSize'][1])))
             self.firstTime = self._confObj.as_bool('firstTime')
+            self.save()
 
         else:
             self._confObj = ConfigObj()
             self._confObj.filename = self.path
 
-            self._confObj['archive'] = 'C:/Daz3D Zips/'
+            self._confObj['archive'] = self.getDefaultArchivePath()
             self.archive = Path(self._confObj['archive'])
 
-            self._confObj['library'] = 'C:/Users/Public/Documents/My DAZ 3D Library/'
+            self._confObj['library'] = self.getDefaultLibraryPath()
             self.library = Path(self._confObj['library'])
 
             self._confObj['clearQueue'] = True
@@ -41,8 +42,6 @@ class Config():
             self._confObj['firstTime'] = True
             self.firstTime = True
 
-        self.save()
-
     def save(self):
 
         self._confObj['archive'] = self.archive
@@ -52,7 +51,7 @@ class Config():
         self._confObj['firstTime'] = self.firstTime
 
         if not self.path.parent.exists():
-            os.mkdir(self.path.parent)
+            Path.mkdir(self.path.parent, parents=True)
 
         self._confObj.write()
 
@@ -60,10 +59,31 @@ class Config():
     def getConfigPath():
         sys = platform.system()
 
-        #logging.info("System detected as " + sys)
         if sys == 'Windows':
             return Path(os.getenv('APPDATA') + '/ADI/')
         elif sys == 'Darwin':  # mac
-            return Path('~/Library/Application Support/ADI/')
+            return Path(os.path.expanduser('~/Library/Application Support/ADI/'))
         else:  # linux
-            return Path('~/.ADI/')
+            return Path(os.path.expanduser('~/.ADI/'))
+
+    @staticmethod
+    def getDefaultLibraryPath():
+        sys = platform.system()
+
+        if sys == 'Windows':
+            return Path('C:/Users/Public/Documents/My DAZ 3D Library/')
+        elif sys == 'Darwin':  # mac
+            return Path(os.path.expanduser('~/Studio3D/DazStudio/Content/'))
+        else:  # linux
+            return Path(os.path.expanduser('~/Daz3D Library/'))
+
+    @staticmethod
+    def getDefaultArchivePath():
+        sys = platform.system()
+
+        if sys == 'Windows':
+            return Path('C:/Users/Public/Documents/DAZ 3D/InstallManager/Downloads')
+        elif sys == 'Darwin':  # mac
+            return Path(os.path.expanduser('~/Studio3D/DazStudio/InstallManager/Download/'))
+        else:  # linux
+            return Path(os.path.expanduser('~/Daz3D Zips/'))

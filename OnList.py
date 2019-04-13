@@ -45,6 +45,9 @@ def OnListContext(self, event):
     item = event.GetItem()
     popupMenu = wx.Menu()
 
+    count = self.assetCtrl.GetSelectedItemCount()
+    logging.debug(str(count) + " items selected")
+
     for i in self.assets.list:
         if item.GetText() == i.productName:
             asset = i
@@ -56,29 +59,38 @@ def OnListContext(self, event):
     z = asset.zip
     p = asset.pkl
 
-    for asset in self.assets.list:
-        if item.GetText() == asset.productName:
-            if p.exists() and asset.installed:
-                self.createMenuOption(event, popupMenu, 'Uninstall', self.uninstallAsset, event, asset)
-                self.createMenuOption(event, popupMenu, 'Queue Uninstall', self.AddToQueue, asset, False)
-                popupMenu.AppendSeparator()
+    if count == 1:
+        for asset in self.assets.list:
+            if item.GetText() == asset.productName:
+                if p.exists() and asset.installed:
+                    self.createMenuOption(event, popupMenu, 'Uninstall', self.uninstallAsset, event, asset)
+                    self.createMenuOption(event, popupMenu, 'Queue Uninstall', self.AddToQueue, asset, False)
+                    popupMenu.AppendSeparator()
 
-            elif not asset.installed and z.exists():
-                self.createMenuOption(event, popupMenu, 'Install', self.installAsset, event, asset)
-                self.createMenuOption(event, popupMenu, 'Queue Install', self.AddToQueue, asset, True)
-                popupMenu.AppendSeparator()
+                elif not asset.installed and z.exists():
+                    self.createMenuOption(event, popupMenu, 'Install', self.installAsset, event, asset)
+                    self.createMenuOption(event, popupMenu, 'Queue Install', self.AddToQueue, asset, True)
+                    popupMenu.AppendSeparator()
 
-            if z.exists() and not p.exists():
-                self.createMenuOption(event, popupMenu, 'Create Pickle', self.button3Action, event, asset)
+                if z.exists() and not p.exists():
+                    self.createMenuOption(event, popupMenu, 'Create Pickle', self.button3Action, event, asset)
 
-            if p.exists() or z.exists():
-                self.createMenuOption(event, popupMenu, 'Open Location', self.OnOpenLibrary, event, asset.path)
+                if p.exists() or z.exists():
+                    self.createMenuOption(event, popupMenu, 'Open Location', self.OnOpenLibrary, event, asset.path)
 
-            if p.exists() and not asset.installed:
-                self.createMenuOption(event, popupMenu, 'Check if Installed',
-                                      asset.detectInstalled, self)
+                if p.exists() and not asset.installed:
+                    self.createMenuOption(event, popupMenu, 'Check if Installed',
+                                          asset.detectInstalled, self)
 
-            self.PopupMenu(popupMenu, event.GetPoint())
+                self.PopupMenu(popupMenu, event.GetPoint())
+    else:
+        selectedAssets = [self.assetCtrl.GetFirstSelected()]
+        i = 0
+        while selectedAssets[i] is not -1:
+            selectedAssets.append(self.assetCtrl.GetNextSelected(selectedAssets[i]))
+            i += 1
+        for item in selectedAssets:
+            logging.debug(self.assetCtrl.GetItemText(item, 0))
 
 
 def OnQueueContext(self, event):

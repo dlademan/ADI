@@ -25,7 +25,7 @@ class AssetList(object):
         entry = AssetItem(path, installed)
         for item in self.list:
             if entry.fileName == item.fileName:
-                logging.info(entry.productName + " already in asset list, item not added.")
+                #logging.info(entry.productName + " already in asset list, item not added.")
                 return entry
         self.list.append(entry)
         self.list.sort()
@@ -78,9 +78,13 @@ class AssetItem(object):
 
     def __init__(self, path=None, installed=False):
         self.path = path
-        self.fileName = path.stem
         self.zip = path.with_suffix('.zip')
         self.pkl = path.with_suffix('.pkl')
+
+        if self.zip.exists():
+            self.fileName = self.zip.name
+        else:
+            self.fileName = self.pkl.name
 
         if self.pkl.exists():
             with open(self.pkl, 'rb') as f:
@@ -136,8 +140,12 @@ class AssetItem(object):
             temp = productName[14:]
             temp = re.findall('[\dA-Z]+(?=[A-Z])|[\dA-Z][^\dA-Z]+', temp)
             productName = ' '.join(temp)
+        elif '-' in productName:
+            productName = productName.replace('-', ' ')
         elif '_' in productName:
             productName = productName.replace('_', ' ')
+        elif productName.islower():
+            pass
         elif ' ' in productName:
             pass
         else:

@@ -1,3 +1,8 @@
+V1.2.1
+    BugFixes
+    - Fixed user folder generation when determining User Folder
+    - Fixed creating of default folders before first time setup is completed
+
 V1.2.0
     Features
     - Threading implemented on file manipulation

@@ -18,8 +18,8 @@ class SetupFrame(wx.Frame):
         if self.init:
             logging.warning("Configuration window already shown")
             return
-        wx.Frame.__init__(self, parent, -1, "ADI Configuration", wx.DefaultPosition, (600, 250),
-                          style=wx.DEFAULT_FRAME_STYLE ^ wx.RESIZE_BORDER)
+        wx.Frame.__init__(self, parent, -1, "ADI Configuration", wx.DefaultPosition, (700, 250),
+                          style=wx.DEFAULT_FRAME_STYLE)  # ^ wx.RESIZE_BORDER)
         # self.Bind(wx.EVT_CLOSE, self.OnClose)
 
         self.parent = parent
@@ -91,15 +91,10 @@ class SetupFrame(wx.Frame):
         self.Show()
 
     def saveAndClose(self, event):
-        logging.debug("saveAndClose")
-
         self.parent.config.archive = Path(self.archivePicker.GetPath())
         self.parent.config.library = Path(self.libraryPicker.GetPath())
         self.parent.config.clearQueue = self.clearQueueBox.GetValue()
-
         self.parent.config.winSize = self.parent.GetSize()
-
-        logging.debug(self.parent.config.winSize)
         self.parent.config.firstTime = False
 
         self.parent.config.save()

@@ -49,6 +49,7 @@ class MainFrame(wx.Frame):
             self.setupWindow = SetupFrame(self)
         else:
             self.SetSize(size=self.config.winSize)
+            # self.SetPosition()
             self.Show()
 
     def SaveCurrentSize(self, event):
@@ -59,10 +60,6 @@ class MainFrame(wx.Frame):
         self.SaveCurrentSize(event)
         logging.info("------------ ADI Closed -------------")
         event.Skip()
-
-    def OnLeftClick(self, event):
-        item = event.GetItem()
-        self.zipTree.Expand(item)  # expand item
 
     def OnListSel(self, event):
         OnListSel(self, event)
@@ -160,7 +157,7 @@ class MainFrame(wx.Frame):
                 logging.info(asset.productName + " already installed, skipping detection")
                 continue
             if str(directory) in str(asset.path):
-                detectThread = threading.Thread(target=asset.detectInstalled)
+                detectThread = threading.Thread(target=asset.detectInstalled, args=[self])
                 detectThread.start()
 
     # todo threading here
