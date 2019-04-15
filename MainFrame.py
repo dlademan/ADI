@@ -61,21 +61,6 @@ class MainFrame(wx.Frame):
         self.SaveCurrentDimensions(event)
         event.Skip()
 
-    def OnListSel(self, event):
-        OnListSel(self, event)
-
-    def OnListContext(self, event):
-        OnListContext(self, event)
-
-    def OnTreeSel(self, event):
-        OnTreeSel(self, event)
-
-    def OnTreeContext(self, event):
-        OnTreeContext(self, event)
-
-    def OnQueueContext(self, event):
-        OnQueueContext(self, event)
-
     def InProgressDialog(self):
         pass
 

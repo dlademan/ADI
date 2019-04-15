@@ -1,3 +1,7 @@
+V 1.2.4
+    Code
+    - Duplicate dummy functions removed
+
 V 1.2.3
     Features
     - Added Ability to select multiple assets to be queued with context menu
