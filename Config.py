@@ -6,7 +6,7 @@ import os
 import wx
 
 
-class Config():
+class Config:
 
     def __init__(self, parent, filename='config.ini'):
         self.path = self.getConfigPath() / Path(filename)
@@ -18,10 +18,18 @@ class Config():
             self.archive = Path(self._confObj['archive'])
             self.library = Path(self._confObj['library'])
             self.clearQueue = self._confObj.as_bool('clearQueue')
-            self.winSize = wx.Size((int(self._confObj['winSize'][0]),
-                                    int(self._confObj['winSize'][1])))
+
+            sizeW = int(self._confObj['winSize'][0])
+            sizeH = int(self._confObj['winSize'][1])
+
+            self.winSize = wx.Size(sizeW, sizeH)
+
+            posX = int(self._confObj['winPos'][0])
+            posY = int(self._confObj['winPos'][1])
+
+            self.winPos = wx.Point(posX, posY)
+
             self.firstTime = self._confObj.as_bool('firstTime')
-            self.save()
 
         else:
             self._confObj = ConfigObj()
@@ -39,6 +47,9 @@ class Config():
             self._confObj['winSize'] = wx.Size(950, 800)
             self.winSize = wx.Size(950, 800)
 
+            self._confObj['winPos'] = parent.GetPosition().Get()
+            self.winPos = wx.Point(int(self._confObj['winPos'][0]), int(self._confObj['winPos'][1]))
+
             self._confObj['firstTime'] = True
             self.firstTime = True
 
@@ -48,7 +59,9 @@ class Config():
         self._confObj['library'] = self.library
         self._confObj['clearQueue'] = self.clearQueue
         self._confObj['winSize'] = self.winSize.Get()
+        self._confObj['winPos'] = self.winPos.Get()
         self._confObj['firstTime'] = self.firstTime
+
 
         if not self.path.parent.exists():
             Path.mkdir(self.path.parent, parents=True)

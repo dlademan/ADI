@@ -1,3 +1,14 @@
+V 1.2.3
+    Features
+    - Added Ability to select multiple assets to be queued with context menu
+
+    Code
+    - Merged OnList and OnTree into MainFrame
+
+V 1.2.2
+    Feature
+    - ADI now remembers the last position when closed
+
 V1.2.1
     BugFixes
     - Fixed user folder generation when determining User Folder

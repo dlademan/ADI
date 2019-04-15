@@ -26,7 +26,7 @@ class MainFrame(wx.Frame):
     def __init__(self, parent, id, title):
 
         wx.Frame.__init__(self, parent, id, title, wx.DefaultPosition, (950, 800), style=wx.DEFAULT_FRAME_STYLE)
-        self.Bind(wx.EVT_CLOSE, self.OnClose)
+        self.Bind(wx.EVT_IDLE, self.OnIdle)
 
         self.config = Config(self)
         self.initLogger(self.logger)
@@ -49,16 +49,16 @@ class MainFrame(wx.Frame):
             self.setupWindow = SetupFrame(self)
         else:
             self.SetSize(size=self.config.winSize)
-            # self.SetPosition()
+            self.SetPosition(self.config.winPos)
             self.Show()
 
-    def SaveCurrentSize(self, event):
+    def SaveCurrentDimensions(self, event):
         self.config.winSize = self.GetSize()
+        self.config.winPos = self.GetPosition()
         self.config.save()
 
-    def OnClose(self, event):
-        self.SaveCurrentSize(event)
-        logging.info("------------ ADI Closed -------------")
+    def OnIdle(self, event):
+        self.SaveCurrentDimensions(event)
         event.Skip()
 
     def OnListSel(self, event):
@@ -215,6 +215,10 @@ class MainFrame(wx.Frame):
         self.queue.append(asset, process)
         self.GUIQueue()
 
+    def AddListToQueue(self, assetList, process):
+        for asset in assetList:
+            self.AddToQueue(asset, process)
+
     def GUIUpdate(self):
         self.GUIInstalled()
         self.GUIAssets()
@@ -273,7 +277,7 @@ class MainFrame(wx.Frame):
         fileMenu = wx.Menu()  # file
 
         fileQuit = wx.MenuItem(fileMenu, wx.ID_EXIT, '&Quit')
-        self.Bind(wx.EVT_MENU, self.OnClose, fileQuit)
+        self.Bind(wx.EVT_MENU, self.OnIdle, fileQuit)
 
         fileMenu.Append(fileQuit)
 
@@ -464,6 +468,9 @@ class MainFrame(wx.Frame):
     def initLogger(self, logger):
         formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 
+        if not self.config.getConfigPath().exists():
+            self.config.getConfigPath().mkdir(parents=True)
+
         fh = logging.FileHandler(str(self.config.getConfigPath()) + '/log.txt')
         fh.setLevel(logging.DEBUG)
         fh.setFormatter(formatter)
@@ -473,3 +480,234 @@ class MainFrame(wx.Frame):
         ch.setLevel(logging.DEBUG)
         ch.setFormatter(formatter)
         logger.addHandler(ch)
+
+    def OnListSel(self, event):
+        item = event.GetItem()
+        for i in self.assets.list:
+            if item.GetText() == i.productName:
+                self.selAsset = i
+
+        p = self.selAsset.pkl
+        z = self.selAsset.zip
+
+        if z.exists():
+            self.size.SetLabel('Size: ' + self.selAsset.size)
+            self.zipExists.SetLabel('Zip: Exists')
+            self.button3.Enable()
+        else:
+            self.size.SetLabel('Size: N/A')
+            self.zipExists.SetLabel('Zip: N/A')
+            self.button3.Disable()
+
+        if p.exists():
+            self.pickleExists.SetLabel('Pickle: Exists')
+            self.button1.Enable()
+            self.button2.Enable()
+        else:
+            self.pickleExists.SetLabel('Pickle: N/A')
+            self.button1.Disable()
+            self.button2.Disable()
+
+        if p.exists() and self.selAsset.installed:
+            self.button1.SetLabel("Queue Uninstall")
+            self.button2.SetLabel("Uninstall")
+        elif z.exists() and not self.selAsset.installed:
+            self.button1.SetLabel("Queue Install")
+            self.button2.SetLabel("Install")
+
+        self.name.SetLabel(item.GetText())
+        self.curPath.SetLabel(str(self.selAsset.path.parent))
+        self.installedText.SetLabel('Installed: True')
+
+    def OnListContext(self, event):
+        item = event.GetItem()
+        popupMenu = wx.Menu()
+
+        count = self.assetCtrl.GetSelectedItemCount()
+        logging.debug(str(count) + " items selected")
+        logging.debug(range(count))
+
+        for i in self.assets.list:
+            if item.GetText() == i.productName:
+                asset = i
+
+        if asset is None:
+            logging.error("Could not find asset in list, no menu to be made")
+            return
+
+        z = asset.zip
+        p = asset.pkl
+
+        if count == 1:
+            for asset in self.assets.list:
+                if item.GetText() == asset.productName:
+                    if p.exists() and asset.installed:
+                        self.createMenuOption(event, popupMenu, 'Uninstall', self.uninstallAsset, event, asset)
+                        self.createMenuOption(event, popupMenu, 'Queue Uninstall', self.AddToQueue, asset, False)
+                        popupMenu.AppendSeparator()
+
+                    elif not asset.installed and z.exists():
+                        self.createMenuOption(event, popupMenu, 'Install', self.installAsset, event, asset)
+                        self.createMenuOption(event, popupMenu, 'Queue Install', self.AddToQueue, asset, True)
+                        popupMenu.AppendSeparator()
+
+                    if z.exists() and not p.exists():
+                        self.createMenuOption(event, popupMenu, 'Create Pickle', self.button3Action, event, asset)
+
+                    if p.exists() or z.exists():
+                        self.createMenuOption(event, popupMenu, 'Open Location', self.OnOpenLibrary, event, asset.path)
+
+                    if p.exists() and not asset.installed:
+                        self.createMenuOption(event, popupMenu, 'Check if Installed',
+                                              asset.detectInstalled, self)
+
+                    self.PopupMenu(popupMenu, event.GetPoint())
+        else:
+            selectedAssets = [self.assetCtrl.GetFirstSelected()]
+            queuedAssets = []
+            for i in range(count - 1):
+                selectedAssets.append(self.assetCtrl.GetNextSelected(selectedAssets[i]))
+            for item in selectedAssets:
+                productName = self.assetCtrl.GetItemText(item, 0)
+                for asset in self.assets.list:
+                    if productName == asset.productName:
+                        queuedAssets.append(asset)
+
+            self.createMenuOption(event, popupMenu, 'Queue selected to be Installed',
+                                  self.AddListToQueue, queuedAssets, True)
+            self.createMenuOption(event, popupMenu, 'Queue selected to be Uninstalled',
+                                  self.AddListToQueue, queuedAssets, False)
+
+            self.PopupMenu(popupMenu, event.GetPoint())
+
+    def OnTreeSel(self, event):
+        # Get the selected item object
+        self.item = event.GetItem()
+        productName = self.tree.GetItemText(self.item)
+        asset = None
+        for member in self.assets.list:
+            if member.productName == productName:
+                asset = member
+                break
+        if asset is None:
+            asset = self.tree.GetItemData(self.item)
+        self.selAsset = asset
+
+        for i in self.assets.list:
+            if asset.fileName == i.fileName:
+                asset = i
+
+        self.name.SetLabel(asset.productName)
+        self.curPath.SetLabel(str(asset.path.parent))
+        if asset.zip.exists():
+            self.zipTree.remake(asset.zip)
+        else:
+            self.zipTree.remake()
+
+        ###
+        if asset.path.is_dir():
+            self.curPath.SetLabel(str(asset.path.parent))
+            self.size.Hide()
+            self.installedText.Hide()
+            self.zipExists.Hide()
+            self.pickleExists.Hide()
+            self.button1.Disable()
+            self.button2.Disable()
+            self.button3.Disable()
+            return
+        else:
+            self.size.Show()
+            self.installedText.Show()
+            self.zipExists.Show()
+            self.pickleExists.Show()
+
+        ####
+        if asset.zip.exists():
+            self.size.SetLabel('Size: ' + asset.size)
+            self.zipExists.SetLabel('Zip: Exists')
+            self.button3.Enable()
+        else:
+            self.size.SetLabel('Size: N/A')
+            self.zipExists.SetLabel('Zip: N/A')
+            self.button3.Disable()
+
+        if asset.installed:
+            self.installedText.SetLabel('Installed: True')
+        else:
+            self.installedText.SetLabel('Installed: False')
+        ####
+        if asset.pkl.exists():
+            self.pickleExists.SetLabel('Pickle: Exists')
+        else:
+            self.pickleExists.SetLabel('Pickle: False')
+        ####
+        if asset.installed and asset.pkl.exists():
+            self.button1.SetLabel('Queue Uninstall')
+            self.button1.Enable()
+            self.button2.SetLabel('Uninstall')
+            self.button2.Enable()
+        elif not asset.installed and asset.zip.exists():
+            self.button1.SetLabel('Queue Install')
+            self.button1.Enable()
+            self.button2.SetLabel('Install')
+            self.button2.Enable()
+        else:
+            self.button1.Disable()
+            self.button2.Disable()
+
+    def OnTreeContext(self, event):
+        # Get TreeItemData
+        self.item = event.GetItem()
+        asset = self.tree.GetItemData(self.item)
+        # for asset in self.assets.list:
+        #     if tempAsset.fileName == asset.fileName:
+        #         asset =
+        self.selAsset = asset
+
+        # Create menu
+        popupmenu = wx.Menu()
+        forcemenu = wx.Menu()
+
+        if not asset.path.is_dir():
+            index = self.assets.getIndex(asset)
+            installed = self.assets.list[index].installed
+            path = self.assets.list[index].path
+            z = self.assets.list[index].zip
+            p = self.assets.list[index].pkl
+
+            if installed and p.exists():
+                self.createMenuOption(event, popupmenu, 'Uninstall', self.uninstallAsset, event, asset)
+                self.createMenuOption(event, popupmenu, 'Queue Uninstall', self.AddToQueue, asset, False)
+
+            elif not installed and z.exists():
+                self.createMenuOption(event, popupmenu, 'Install', self.installAsset, event, asset)
+                self.createMenuOption(event, popupmenu, 'Queue Install', self.AddToQueue, asset, True)
+
+            if not path.is_dir():
+                self.createMenuOption(event, forcemenu, 'Install', self.installAsset, event, asset)
+                self.createMenuOption(event, forcemenu, 'Uninstall', self.uninstallAsset, event, asset)
+                popupmenu.AppendSubMenu(forcemenu, '&Force')
+
+            if p.exists() and not installed:
+                self.createMenuOption(event, popupmenu, 'Check if Installed',
+                                      asset.detectInstalled, self)
+        elif asset.path.is_dir():
+            self.createMenuOption(event, popupmenu, 'Queue all to be installed',
+                                  self.queueAll, asset.path, True)
+            self.createMenuOption(event, popupmenu, 'Queue all to be uninstalled',
+                                  self.queueAll, asset.path, False)
+            self.createMenuOption(event, popupmenu, 'Detect assets in directory',
+                                  self.detectAll, event, asset.path)
+
+        self.createMenuOption(event, popupmenu, 'Open Location', self.OnOpenLibrary, event, asset.path)
+
+        self.PopupMenu(popupmenu, event.GetPoint())  # show menu at cursor
+
+    def OnQueueContext(self, event):
+        item = event.GetItem()
+        popupMenu = wx.Menu()
+
+        logging.debug(item.GetText())
+
+        self.createMenuOption(event, popupMenu, 'Remove from queue', self.queue.remove, item.GetText())
+        self.PopupMenu(popupMenu, event.GetPoint())
