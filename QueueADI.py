@@ -13,9 +13,8 @@ class QueueList(object):
         self.parent = parent
         self.path = parent.config.library / Path(self.name)
 
-        self.clear = clear
-        self.list = self.load()
-        self.inProgress = False
+        self.list = []
+        self.in_progress = False
         self.save()
 
     def append(self, asset, process, queuedTime=datetime.now(), status=0, finishedTime=None):
@@ -24,7 +23,7 @@ class QueueList(object):
         self.save()
 
     def load(self):
-        if self.clear:
+        if self.parent.config.first:
             return []
         elif self.path.exists():
             logging.info("Loading " + self.name + " from: " + str(self.path))
@@ -39,20 +38,22 @@ class QueueList(object):
         with open(self.path, 'wb') as out:
             pickle.dump(self.list, out)
 
-    def remove(self, name=False, asset=False):
+    def clear_list(self):
+        self.list = []
+
+    def remove(self, product_name=False, asset=False):
         if asset:
             self.list.remove(asset)
             return
 
         for item in self.list:
-            if name == item.asset.name:
+            if product_name == item.asset.product_name:
                 self.list.remove(item)
 
-        self.parent.GUIQueue()
-
+        self.parent.update_queue()
         self.save()
 
-    def getIndex(self, name):
+    def get_index(self, name):
         i = 0  # find index of item in assets list
         for item in self.list:
             if item.name == name:
@@ -60,7 +61,7 @@ class QueueList(object):
             i += 1
         return i
 
-    def updateStatus(self, i, status):
+    def update_status(self, i, status):
         self.list[i].status = status
         if status == 2:
             self.list[i].finishedTime = datetime.now()
@@ -76,16 +77,16 @@ class Item(object):
         self.status = status
 
         # defaulted
-        self.queuedTime = queuedTime
-        self.finishedTime = finishedTime
+        self.queued_time = queuedTime
+        self.finished_time = finishedTime
 
     @property
-    def statusStr(self):
+    def status_str(self):
         statusList = ['Queued', 'In Progress', 'Finished', 'Failed']
         return statusList[self.status]
 
     @property
-    def processStr(self):
+    def process_str(self):
         if self.process:
             return "Install"
         else:

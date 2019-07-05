@@ -1,5 +1,5 @@
 from MainFrame import MainFrame
-import wx
+import wx, wx.adv
 
 
 class ADI(wx.App):
@@ -7,11 +7,10 @@ class ADI(wx.App):
 
     def OnInit(self):
         frame = MainFrame(None, -1, "Alternative Daz Importer")
-        # frame.Show(True)
-        # self.SetTopWindow(frame)
+
         return True
 
 
 if __name__ == '__main__':
-    app = ADI(0)
+    app = ADI(False)
     app.MainLoop()

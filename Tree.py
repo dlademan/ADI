@@ -9,48 +9,68 @@ from Asset import AssetItem
 
 class FolderTree(wx.TreeCtrl):
 
-    def __init__(self, parent, archive, id, position, size, style, main):
+    def __init__(self, parent, archive, id, position, size, style, main,
+                 filter_installed=False, filter_not_installed=False, filter_zip=False):
         wx.TreeCtrl.__init__(self, parent, id, position, size, style)
         self.path = archive
         self.main = main
-        treeThread = threading.Thread(target=self.make(), args=[])
-        treeThread.start()
+
+        self.filter_installed = filter_installed
+        self.filter_not_installed = filter_not_installed
+        self.filter_zip = filter_zip
+
+        if not self.main.config.first:
+            treeThread = threading.Thread(target=self.make(), args=[])
+            treeThread.start()
 
     def make(self):
         self.DeleteAllItems()
         asset = AssetItem(self.main.config.archive)
-        rootNode = self.AddRoot(self.path.name, data=asset)
-        self.populate(rootNode)
+        self.root_node = self.AddRoot(self.path.name, data=asset)
+        node_list = self.populate(self.root_node)
+        node_list.reverse()
+        for node in node_list:
+            path = self.GetItemData(node).path
+            children_count = self.GetChildrenCount(node)
+            if path.is_dir() and children_count < 1:
+                self.Delete(node)
+
+        if self.main.config.expand:
+            self.ExpandAll()
 
     def populate(self, curNode):
-        skip = []
-        subList = self.directory(self.GetItemData(curNode).path)  # list of Path objects in current folder
-        nodeList = []
-        for subDir in subList:
-            if subDir.stem in skip:
-                continue
-            elif subDir.is_dir():
-                asset = AssetItem(subDir)
-                nextNode = self.AppendItem(curNode, asset.productName, -1, -1, asset)
-                nodeList.append(nextNode)
-                self.SetItemHasChildren(nextNode, True)
-                self.populate(nextNode)
-            elif subDir.suffix == '.pkl' and subDir.with_suffix('.zip').exists():
-                asset = self.main.assets.append(subDir.stem, subDir.with_suffix('.zip'))
-                skip.append(subDir.stem)  # skip zip of same name
-                nextNode = self.AppendItem(curNode, asset.productName, -1, -1, asset)
-                nodeList.append(nextNode)
-            elif subDir.suffix == '.pkl' or subDir.suffix == '.zip':
-                asset = self.main.assets.append(subDir.stem, subDir)
-                nextNode = self.AppendItem(curNode, asset.productName, -1, -1, asset)
-                nodeList.append(nextNode)
+        path = self.GetItemData(curNode).path
+        sub_list = [x for x in path.iterdir()]  # list of Path objects in current folder
+        node_list = []
+        term = self._strip_product_name(self.main.textctrl_filter.GetLineText(0))
+        for sub in sub_list:
+
+            if sub.is_dir():
+                asset = AssetItem(sub)
+                next_node = self.AppendItem(curNode, asset.product_name, -1, -1, asset)
+                node_list.append(next_node)
+
+                self.SetItemHasChildren(next_node, True)
+                temp_list = self.populate(next_node)
+
+                for node in temp_list:
+                    node_list.append(node)
+
+            elif sub.with_suffix('.zip').exists():
+                asset = self.main.assets.append(sub.with_suffix('.zip'))
+
+                product_name = self._strip_product_name(asset.product_name)
+                if term not in product_name and term not in asset.tags: continue
+                if self.filter_installed and not asset.installed: continue
+                if self.filter_not_installed and asset.installed: continue
+                if self.filter_zip and not asset.zip.exists(): continue
+
+                next_node = self.AppendItem(curNode, asset.product_name, -1, -1, asset)
+                node_list.append(next_node)
 
         self.SortChildren(curNode)
-        for node in nodeList:
-            self.SortChildren(node)
+        return node_list
 
-
-    # TODO make this work
     def OnCompareItems(self, item1, item2):
         text1 = self.GetItemText(item1)
         text2 = self.GetItemText(item2)
@@ -77,11 +97,8 @@ class FolderTree(wx.TreeCtrl):
                 return 1
 
     @staticmethod
-    def directory(directory):
-        """crawls the root folder of library to populate"""
-
-        root = [x for x in directory.iterdir()]
-        return root
+    def _strip_product_name(name):
+        return name.lower().replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
 
 
 class ZipTree(wx.TreeCtrl):
@@ -103,19 +120,19 @@ class ZipTree(wx.TreeCtrl):
 
         if len(infolist) < 1: return
 
-        nodeList = []
+        node_list = []
         for file in infolist:
             if not pick:
-                fileName = file.filename
-                fileIsDir = file.is_dir()
+                file_name = file.filename
+                file_is_dir = file.is_dir()
             else:
-                fileName = file
-                fileIsDir = False
-            split = str(fileName).split("/")
+                file_name = file
+                file_is_dir = False
+            split = str(file_name).split("/")
             if len(split) <= 2:
-                nodeList.append(self.AppendItem(rootNode, fileName))
+                node_list.append(self.AppendItem(rootNode, file_name))
             else:
-                if fileIsDir:
+                if file_is_dir:
                     offset = -2
                 else:
                     offset = -1
@@ -124,16 +141,16 @@ class ZipTree(wx.TreeCtrl):
                 parentStr = ""
                 for part in split: parentStr += part + "/"
 
-                for i in range(len(nodeList)):
+                for i in range(len(node_list)):
                     if pick:
                         if parentStr == infolist[i]:
-                            nodeList.append(self.AppendItem(nodeList[i], str(fileName).split("/")[offset]))
+                            node_list.append(self.AppendItem(node_list[i], str(file_name).split("/")[offset]))
                             break
                     else:
                         if parentStr == infolist[i].filename:
-                            nodeList.append(self.AppendItem(nodeList[i], str(fileName).split("/")[offset]))
+                            node_list.append(self.AppendItem(node_list[i], str(file_name).split("/")[offset]))
                             break
-        for node in nodeList:
+        for node in node_list:
             self.SortChildren(node)
 
     def remake(self, path=None):
@@ -141,7 +158,12 @@ class ZipTree(wx.TreeCtrl):
         rootNode = self.AddRoot('zipRoot')
         if not path: return
         if path.suffix == ".zip":
-            self.file = ZipFile(path)
+            try:
+                self.file = ZipFile(path)
+            except:
+                logging.error("Error occurred while opening zip file: " + str(path.name))
+                return "error"
+
             self.populate(rootNode, False)
             self.file.close()
 

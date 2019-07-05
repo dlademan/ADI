@@ -2,74 +2,129 @@ from pathlib import Path
 from configobj import ConfigObj
 import logging
 import platform
+import pickle
 import os
 import wx
 
 
 class Config:
 
-    def __init__(self, parent, filename='config.ini'):
-        self.path = self.getConfigPath() / Path(filename)
+    def __init__(self, parent):
+        logging.info("Loading Config")
+        config_path = self.get_config_path()
+        self.config_path = config_path / Path('config.ini')
+        self.debug_path = config_path / Path('debug.ini')
+        self.dimensions_path = config_path / Path('dimensions.pkl')
         self.parent = parent
 
-        if self.path.exists():
-            self._confObj = ConfigObj(str(self.path))
-
-            self.archive = Path(self._confObj['archive'])
-            self.library = Path(self._confObj['library'])
-            self.clearQueue = self._confObj.as_bool('clearQueue')
-
-            sizeW = int(self._confObj['winSize'][0])
-            sizeH = int(self._confObj['winSize'][1])
-
-            self.winSize = wx.Size(sizeW, sizeH)
-
-            posX = int(self._confObj['winPos'][0])
-            posY = int(self._confObj['winPos'][1])
-
-            self.winPos = wx.Point(posX, posY)
-
-            self.firstTime = self._confObj.as_bool('firstTime')
-
+        if self.debug_path.exists() and self.dimensions_path.exists():
+            self.load_debug()
+            self.load_dimensions()
+        elif self.config_path.exists() and self.dimensions_path.exists():
+            self.load_config()
+            self.load_dimensions()
+        elif self.config_path.exists():
+            self.load_config()
+            self.create_dimensions(False)
         else:
-            self._confObj = ConfigObj()
-            self._confObj.filename = self.path
+            self.create_config()
+            self.create_dimensions()
 
-            self._confObj['archive'] = self.getDefaultArchivePath()
-            self.archive = Path(self._confObj['archive'])
+    def save_config(self):
+        if not self.config_path.parent.exists():
+            Path.mkdir(self.config_path.parent, parents=True)
 
-            self._confObj['library'] = self.getDefaultLibraryPath()
-            self.library = Path(self._confObj['library'])
+        self._config['archive'] = self.archive
+        self._config['library'] = self.library
+        self._config['clear_queue'] = self.clear_queue
+        self._config['expand'] = self.expand
+        self._config['close_dialog'] = self.close_dialog
+        self._config.write()
 
-            self._confObj['clearQueue'] = True
-            self.clearQueue = True
+    def save_dimensions(self):
 
-            self._confObj['winSize'] = wx.Size(950, 800)
-            self.winSize = wx.Size(950, 800)
+        logging.debug("Saving win_size as " + str(self.win_size))
+        logging.debug("Saving win_pos as " + str(self.win_pos))
 
-            self._confObj['winPos'] = parent.GetPosition().Get()
-            self.winPos = wx.Point(int(self._confObj['winPos'][0]), int(self._confObj['winPos'][1]))
+        self._dimensions[0] = self.win_size
+        self._dimensions[1] = self.win_pos
+        self._dimensions[2] = self.first
 
-            self._confObj['firstTime'] = True
-            self.firstTime = True
+        with open(self.dimensions_path, 'wb') as out:
+            pickle.dump(self._dimensions, out)
 
-    def save(self):
+        root_file_path = self.archive / Path('root.pkl')
+        with open(root_file_path, 'wb') as out:
+            pickle.dump(None, out)
 
-        self._confObj['archive'] = self.archive
-        self._confObj['library'] = self.library
-        self._confObj['clearQueue'] = self.clearQueue
-        self._confObj['winSize'] = self.winSize.Get()
-        self._confObj['winPos'] = self.winPos.Get()
-        self._confObj['firstTime'] = self.firstTime
+    def load_debug(self):
+        self._config_debug = ConfigObj(str(self.debug_path))
+
+        self.archive = Path(self._config['archive'])
+        self.library = Path(self._config['library'])
+        self.clear_queue = self._config.as_bool('clear_queue')
+        self.expand = self._config.as_bool('expand')
+        self.close_dialog = self._config.as_bool('close_dialog')
+
+    def load_config(self):
+        self._config = ConfigObj(str(self.config_path))
+
+        self.archive = Path(self._config['archive'])
+        self.library = Path(self._config['library'])
+        self.clear_queue = self._config.as_bool('clear_queue')
+        self.expand = self._config.as_bool('expand')
+        self.close_dialog = self._config.as_bool('close_dialog')
+
+    def create_config(self):
+        self._config = ConfigObj()
+        self._config.filename = self.config_path
+
+        self._config['archive'] = self.get_default_archive_path()
+        self.archive = Path(self._config['archive'])
+
+        self._config['library'] = self.get_default_library_path()
+        self.library = Path(self._config['library'])
+
+        self._config['clear_queue'] = self.clear_queue = True
+
+        self._config['expand'] = self.expand = True
+
+        self._config['close_dialog'] = self.close_dialog = False
+
+        # create dimensions if config is wiped #
+        self._dimensions = []
+        self.win_size = (950, 800)
+        self._dimensions.append(self.win_size)
+
+        self.win_pos = self.parent.GetPosition().Get()
+        self._dimensions.append(self.win_pos)
+
+        self.first = True
+        self._dimensions.append(self.first)
+
+    def load_dimensions(self):
+        with open(self.dimensions_path, "rb") as f:
+            self._dimensions = pickle.load(f)
+
+        self.win_size = self._dimensions[0]
+        self.win_pos = self._dimensions[1]
+        self.first = self._dimensions[2]
 
 
-        if not self.path.parent.exists():
-            Path.mkdir(self.path.parent, parents=True)
 
-        self._confObj.write()
+    def create_dimensions(self, first=True):
+        self._dimensions = []
+        self.win_size = (950, 800)
+        self._dimensions.append(self.win_size)
+
+        self.win_pos = self.parent.GetPosition().Get()
+        self._dimensions.append(self.win_pos)
+
+        self.first = first
+        self._dimensions.append(self.first)
 
     @staticmethod
-    def getConfigPath():
+    def get_config_path():
         sys = platform.system()
 
         if sys == 'Windows':
@@ -80,7 +135,7 @@ class Config:
             return Path(os.path.expanduser('~/.ADI/'))
 
     @staticmethod
-    def getDefaultLibraryPath():
+    def get_default_library_path():
         sys = platform.system()
 
         if sys == 'Windows':
@@ -91,12 +146,12 @@ class Config:
             return Path(os.path.expanduser('~/Daz3D Library/'))
 
     @staticmethod
-    def getDefaultArchivePath():
-        sys = platform.system()
+    def get_default_archive_path():
+        system = platform.system()
 
-        if sys == 'Windows':
+        if system == 'Windows':
             return Path('C:/Users/Public/Documents/DAZ 3D/InstallManager/Downloads')
-        elif sys == 'Darwin':  # mac
+        elif system == 'Darwin':  # mac
             return Path(os.path.expanduser('~/Studio3D/DazStudio/InstallManager/Download/'))
         else:  # linux
             return Path(os.path.expanduser('~/Daz3D Zips/'))

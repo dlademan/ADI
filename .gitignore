@@ -4,9 +4,13 @@ adi.build/
 adi.dist/
 adi.release/
 old-code/
+Tests/
 .idea/
 .git/
+icons/raw/
 
 # files to ignore
 org.txt
 todo.txt
+actions.txt
+nuitka build.bat

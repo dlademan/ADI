@@ -12,28 +12,17 @@ import xml.etree.ElementTree as etree
 
 class AssetList(object):
 
-    def __init__(self, parent, name='assets.pkl'):
+    def __init__(self, parent, name='assets.pkl', clear=False):
+        self.parent = parent
         self.name = name
+        self.clear = clear
         self.path = parent.config.library / Path(self.name)
         self.list = self.load()  # list of AssetItems
 
-    def append(self, name, path, installed=False):
-        """ Appends an asset to the list of imported assets
-        :args: name, path, installed=False
-        :rtype: AssetItem
-        """
-        entry = AssetItem(path, installed)
-        for item in self.list:
-            if entry.fileName == item.fileName:
-                #logging.info(entry.productName + " already in asset list, item not added.")
-                return entry
-        self.list.append(entry)
-        self.list.sort()
-        self.save()
-        return entry
-
     def load(self):
-        if self.path.exists():
+        if self.clear or self.parent.config.first:
+            return []
+        elif self.path.exists():
             logging.info("Loading " + self.name + " from: " + str(self.path))
             with open(self.path, 'rb') as f:
                 return pickle.load(f)
@@ -42,8 +31,39 @@ class AssetList(object):
             return []  # return empty list if not found
 
     def save(self):
+        if not self.path.parent.exists():
+            Path.mkdir(self.path.parent, parents=True)
+
         with open(self.path, 'wb') as out:
             pickle.dump(self.list, out)
+
+    def append(self, path, installed=False):
+        """ Appends an asset to the list of imported assets
+        :args: path, installed=False
+        :rtype: AssetItem
+        """
+        entry = AssetItem(path, installed)
+        for item in self.list:
+            if entry.file_name == item.file_name:
+                item.tags = entry.tags
+                item.path = entry.path
+                item.zip = item.path.with_suffix('.zip')
+                return item
+        i = 0
+        suffix = 2
+        temp = entry.product_name
+        while i < len(self.list):
+            if temp == self.list[i].product_name:
+                temp = entry.product_name + ' ' + str(suffix)
+                suffix += 1
+                i = 0
+                continue
+            i += 1
+        entry.product_name = temp
+        self.list.append(entry)
+        self.list.sort()
+        self.save()
+        return entry
 
     def remove(self, name):
         for item in self.list:
@@ -51,24 +71,39 @@ class AssetList(object):
                 self.list.remove(item)
         self.save()
 
-    def getIndex(self, asset):
+    def clean(self):
+        for asset in self.list:
+            if not asset.installed and not asset.zip.exists():
+                self.list.remove(asset)
+
+        self.parent.update_all()
+        self.save()
+
+    def get_index(self, asset):
         i = 0  # find index of item in assets list
         for item in self.list:
-            if item.fileName == asset.fileName:
+            if item.file_name == asset.file_name:
                 break
             i += 1
         return i
 
-    def getItem(self, fileName):
-        for item in self.list:
-            if item.fileName == fileName:
-                return item
+    def get_item(self, file_name=None, product_name=None):
+        if file_name is not None:
+            for asset in self.list:
+                if asset.file_name == file_name:
+                    return asset
+        elif product_name is not None:
+            for asset in self.list:
+                if asset.product_name == product_name:
+                    return asset
+        elif product_name is None and file_name is None:
+            logging.warning("Please pass an arg when using get_item")
 
-        logging.error("Could not find item in assets")
+        return None
 
     def update(self, i, installed=False, time=datetime.now()):
         self.list[i].installed = installed
-        self.list[i].installedTime = time
+        self.list[i].installed_time = time
         self.save()
 
 
@@ -79,38 +114,33 @@ class AssetItem(object):
     def __init__(self, path=None, installed=False):
         self.path = path
         self.zip = path.with_suffix('.zip')
-        self.pkl = path.with_suffix('.pkl')
+
+        self.file_name = self.zip.name
 
         if self.zip.exists():
-            self.fileName = self.zip.name
+            self.file_list = self.create_file_list()
         else:
-            self.fileName = self.pkl.name
-
-        if self.pkl.exists():
-            with open(self.pkl, 'rb') as f:
-                self.fileList = pickle.load(f)
-        elif self.zip.exists():
-            self.fileList = self.createFileList()
-        else:
-            self.fileList = []
+            self.file_list = []
 
         if self.zip.exists():
-            self.productName = self._parseProductName()
+            self.product_name = self._parse_product_name()
         else:
-            self.productName = path.stem
+            self.product_name = path.stem
 
-        self._sizeExt = 'MB'  # default suffix
-        self._size = self._calcSize()  # use self.size property to get string with units on size
+        self._size_ext = 'MB'  # default suffix
+        self.size_raw, self.size_display = self._calc_size()  # use self.size property to get string with units on size
 
         self.installed = installed
-        self.installedTime = None
+        self.installed_time = None
+
+        self.tags = self._create_tags()
 
     def __lt__(self, other):
-        return self.fileName < other.fileName
+        return self.product_name < other.product_name
 
-    def _calcSize(self, places=2):
-        if not self.path.exists() and self.path.suffix == '':
-            self.path.mkdir()
+    def _calc_size(self, places=2):
+        if not self.path.exists() and self.path.is_dir():
+            Path.mkdir(self.path.parent, parents=True)
             return 0
 
         size = self.path.stat().st_size
@@ -118,179 +148,239 @@ class AssetItem(object):
 
         if size > 2 ** 30:
             size /= 2 ** 30
-            self._sizeExt = 'GB'
+            self._size_ext = 'GB'
         else:
             size /= 2 ** 20
-            self._sizeExt = 'MB'
+            self._size_ext = 'MB'
 
-        return int(size * rnd) / rnd  #
+        return self.path.stat().st_size, str(int(size * rnd) / rnd) + ' ' + self._size_ext
 
-    def _parseProductName(self):
-        productName = self.path.stem
+    def _parse_product_name(self):
+        product_name = self.path.stem
 
-        zf = ZipFile(self.zip, 'r')
+        try:
+            zf = ZipFile(self.zip, 'r')
+        except:
+            logging.error("Error occurred while opening zip file: " + str(self.file_name))
+            return "INVALID ZIP"
+
         if 'Supplement.dsx' in zf.namelist():
             zf = ZipFile(self.zip, 'r')
             zf.extract("Supplement.dsx", path='.')
             Tree = etree.parse("Supplement.dsx")
             supplement = Tree.getroot()
-            productName = supplement.find('ProductName').get('VALUE')
+            product_name = supplement.find('ProductName').get('VALUE')
             os.remove("Supplement.dsx")
-        elif productName[:2] == 'IM' and productName[10] == '-' and productName[13] == '_':
-            temp = productName[14:]
+        elif product_name[:2] == 'IM' and product_name[10] == '-' and product_name[13] == '_':
+            temp = product_name[14:]
             temp = re.findall('[\dA-Z]+(?=[A-Z])|[\dA-Z][^\dA-Z]+', temp)
-            productName = ' '.join(temp)
-        elif '-' in productName:
-            productName = productName.replace('-', ' ')
-        elif '_' in productName:
-            productName = productName.replace('_', ' ')
-        elif productName.islower():
+            product_name = ' '.join(temp)
+        elif '-' in product_name:
+            product_name = product_name.replace('-', ' ')
+        elif '_' in product_name:
+            product_name = product_name.replace('_', ' ')
+        elif product_name.islower():
             pass
-        elif ' ' in productName:
+        elif ' ' in product_name:
             pass
         else:
-            temp = re.findall('[\dA-Z]+(?=[A-Z])|[\dA-Z][^\dA-Z]+', productName)
-            productName = ' '.join(temp)
+            temp = re.findall('[\dA-Z]+(?=[A-Z])|[\dA-Z][^\dA-Z]+', product_name)
+            product_name = ' '.join(temp)
         zf.close()
 
-        return productName
+        return product_name
 
-    def createFileList(self):
-        if not self.zip.exists():
-            logging.warning("Cannot open " + self.zip.name + " in " + self.zip.parent)
-            return
+    def _create_tags(self):
+        path = str(self.path)
+        root = self._get_root()
+        tags = []
 
-        zfile = ZipFile(self.zip)
+        path = path.replace(str(root), '')
+        temp = path.split('\\')
+        temp = temp[:-1]
+        temp = temp[1:]
+
+        for tag in temp:
+            tag = tag.lower().replace(' ', '')
+            tags.append(tag)
+
+        return tags
+
+    def _get_root(self):
+        if self.path.is_dir():
+            things = [x for x in self.path.iterdir()]
+            for thing in things:
+                if thing.name == "root.pkl":
+                    return self.path
+
+        for member in self.path.parents:
+            things = [x for x in member.iterdir()]
+            for thing in things:
+                if thing.name == "root.pkl":
+                    return member
+
+    def create_file_list(self):
+        try:
+            zfile = ZipFile(self.zip)
+        except:
+            logging.error("Error occurred while opening zip file: " + str(self.file_name))
+            return []
+
         namelist = zfile.namelist()
         zfile.close()
-        fileList = []  # reset if anything inside
+        file_list = []  # reset if anything inside
 
         for member in namelist:
             if "Manifest" in member or "Supplement" in member: continue
-            member = self._cleanPath(member)
-            fileList.append(member)
+            member = self._clean_path(member)
+            file_list.append(member)
 
-        with open(self.pkl, 'wb') as out:
-            pickle.dump(fileList, out)
+        return file_list
 
-        return fileList
-
-    def install(self, parent, installPath):
+    def install(self, parent, install_path, queue_index=None, gauge=None):
+        logging.info("Installing " + self.product_name)
         file = ZipFile(self.zip)
-        memberList = []
-
-        parent.gaugeAsset.SetRange(len(file.namelist()))
-        parent.gaugeAsset.SetValue(0)
+        if gauge is not None:
+            gauge.Pulse()
+            gauge.SetRange(len(file.namelist()))
+            gauge.SetValue(0)
 
         for i, member in enumerate(file.namelist()):
             if "Manifest" in member or "Supplement" in member:
                 continue
 
             source = file.open(member)
-            member = self._cleanPath(member)
-            dest = installPath / Path(member)
-            memberList.append(member)
+            is_dir = file.getinfo(member).is_dir()
+            member = self._clean_path(member)
+            dest = install_path / Path(member)
 
             if not dest.parent.exists():
-                dest.parent.mkdir()
+                try:
+                    Path.mkdir(dest.parent)
+                except OSError as e:
+                    logging.error("Parent folder creation - " + str(e))
 
-            if dest.suffix:
+            if not is_dir:
                 try:
                     with source, open(dest, 'wb') as out:
                         shutil.copyfileobj(source, out)
                 except OSError as e:
-                    logging.error("Could not extract file " + dest.name)
-                    logging.error(e)
-            parent.gaugeAsset.SetValue(i + 1)
+                    logging.error("File creation - " + str(e))
+            if gauge is not None:
+                gauge.SetValue(i + 1)
+
+        if queue_index is not None:
+            parent.queue.update_status(queue_index, 2)
 
         self.installed = True
+        self.installed_time = datetime.now()
+        logging.info(self.product_name + " installed")
 
-    def uninstall(self, parent, installPath):
-        err = False
-        parent.gaugeAsset.SetRange(len(self.fileList))
-        parent.gaugeAsset.SetValue(0)
+    def uninstall(self, parent, installPath, queueIndex=None, gauge=None):
+        logging.info("Uninstalling " + self.product_name)
 
-        for i, member in enumerate(self.fileList):
+        if gauge is not None:
+            gauge.SetRange(len(self.file_list))
+            gauge.SetValue(0)
+
+        for i, member in enumerate(self.file_list):
             member = installPath / Path(member)
             try:
                 if not member.is_dir():
                     os.unlink(member)
-            except OSError:
-                err = True
-            parent.gaugeAsset.SetValue(i + 1)
+            except OSError as e:
+                logging.error("Could not delete file " + member.name + " - " + str(e))
 
-        if err: logging.warning("One or more files could not be found to be deleted")
-        self._removeEmptyDirs(installPath)
+            if gauge is not None:
+                gauge.SetValue(i + 1)
 
-    def detectInstalled(self, parent):
+        self._remove_empty_dirs(installPath)
+
+        if queueIndex is not None:
+            parent.queue.update_status(queueIndex, 2)
+
+        if gauge is not None:
+            gauge.Pulse()
+
+        self.installed = False
+        self.installed_time = None
+        logging.info(self.product_name + " uninstalled")
+
+    def detect(self, parent, update=False):
         fileCount = 0
-        totalCount = len(self.fileList)
+        totalCount = len(self.file_list)
 
-        for member in self.fileList:
+        for member in self.file_list:
             member = parent.config.library / Path(member)
             if member.exists():
                 fileCount += 1
 
-        logging.debug(str(fileCount) + "/" + str(totalCount) + " of " +
-                      self.productName + "'s files were found")
-
         if fileCount == totalCount:
             self.installed = True
-            self.installedTime = datetime.now()
-            logging.debug(self.productName + " set to installed")
+            self.installed_time = datetime.now()
+            logging.debug("Set to installed:     " + self.product_name + " " +
+                          str(fileCount) + "/" + str(totalCount) + " files were found")
         else:
             self.installed = False
-            self.installedTime = None
-            logging.debug(self.productName + " set to not installed")
+            self.installed_time = None
+            logging.debug("Set to not installed: " + self.product_name + " " +
+                          str(fileCount) + "/" + str(totalCount) + " files were found")
 
         parent.assets.save()
-        parent.GUIUpdate()
+        if update:
+            parent.update_all()
+
 
     @property
     def size(self):
-        return str(self._size) + ' ' + self._sizeExt
+        return str(self.size_raw) + ' ' + self._size_ext
 
     @property
-    def zipStr(self):
+    def zip_str(self):
         if self.zip.exists():
             return "Exists"
         else:
             return "DNE"
 
     @property
-    def pklStr(self):
+    def pkl_str(self):
         if self.pkl.exists():
-            return "Exists"
+            return "Y"
         else:
-            return "DNE"
+            return "N"
 
     @property
-    def installedStr(self):
+    def installed_str(self):
         if self.installed:
             return "Installed"
         else:
             return "Not"
 
     @property
-    def installedTimeStr(self):
-        return f"{self.installedTime:%Y-%m-%d %H:%M}"
+    def installed_time_str(self):
+        if isinstance(self.installed_time, datetime):
+            return f"{self.installed_time:%Y-%m-%d %H:%M}"
+        else:
+            return ""
 
     @staticmethod
-    def _cleanPath(path):
+    def _clean_path(path):
         if path[:8] == "Content/":
             path = path[8:]
         elif path[:11] == "My Library/":
             path = path[11:]
+        elif path[:19] == "My DAZ 3D Library/":
+            path = path[19:]
         return path
 
     @staticmethod
-    def _removeEmptyDir(path):
+    def _remove_empty_dir(path):
         try:
             os.rmdir(path)
         except Exception as e:
             e
 
-    def _removeEmptyDirs(self, path):
+    def _remove_empty_dirs(self, path):
         for root, dirnames, filenames in os.walk(path, topdown=False):
             for dirname in dirnames:
-                self._removeEmptyDir(os.path.realpath(os.path.join(root, dirname)))
+                self._remove_empty_dir(os.path.realpath(os.path.join(root, dirname)))

@@ -1,3 +1,10 @@
+V 0.1.0
+    Alpha Release to Public
+
+V 1.2.5
+    Code
+    - Renamed functions according to PEP8 standards
+
 V 1.2.4
     Code
     - Duplicate dummy functions removed
