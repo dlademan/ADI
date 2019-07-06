@@ -8,6 +8,7 @@ import os
 import sys
 import platform
 import winsound
+import pickle
 
 from Asset import AssetList
 from QueueADI import QueueList
@@ -174,6 +175,26 @@ class MainFrame(wx.Frame):
                 elif not process and asset.installed:
                     self.queue_append(asset, process)
 
+    def on_merge_backup(self, event=None):
+        logging.info("Merging backups into database")
+        path = self.config.backup_path
+        pkls = list(path.glob('**/*.pkl'))
+        imported = 0
+
+        for pkl in pkls:
+            asset = self.assets.get_item(file_name=pkl.with_suffix('.zip').name)
+            if asset is None:
+                logging.info("Merging " + str(pkl.name) + " into assets database")
+                with open(pkl, "rb") as f:
+                    asset = pickle.load(f)
+                asset.detect(self)
+                self.assets.list.append(asset)
+                imported += 1
+
+        self.assets.list.sort()
+        self.update_all()
+        # self.detect_directory()
+
     def on_detect_asset(self, asset):
         detect_thread = Thread(target=asset.detect,
                                args=[self, True])
@@ -194,8 +215,7 @@ class MainFrame(wx.Frame):
         threads = []
         for asset in self.assets.list:
             if str(directory) in str(asset.path):
-                t = Thread(target=asset.detect,
-                           args=[self])
+                t = Thread(target=asset.detect, args=[self])
                 threads.append(t)
 
         for thread in threads:
@@ -749,12 +769,14 @@ class MainFrame(wx.Frame):
         lib_archive = wx.MenuItem(lib_menu, -1, '&Open Zip Archive')
         lib_library = wx.MenuItem(lib_menu, -1, '&Open Library')
         lib_detect = wx.MenuItem(lib_menu, -1, '&Detect Installed Assets')
+        lib_merge = wx.MenuItem(lib_menu, -1, '&Merge Backed Up Assets')
         lib_reimport = wx.MenuItem(lib_menu, -1, '&Reimport All Assets')
         lib_clean = wx.MenuItem(lib_menu, -1, '&Clean Library')
 
         self.Bind(wx.EVT_MENU, self.on_open_archive, lib_archive)
         self.Bind(wx.EVT_MENU, self.on_open_library, lib_library)
         self.Bind(wx.EVT_MENU, self.detect_directory, lib_detect)
+        self.Bind(wx.EVT_MENU, self.on_merge_backup, lib_merge)
         self.Bind(wx.EVT_MENU, self.on_reimport_assets, lib_reimport)
         self.Bind(wx.EVT_MENU, self.on_clean_library, lib_clean)
 
@@ -762,6 +784,7 @@ class MainFrame(wx.Frame):
         lib_menu.Append(lib_library)
         lib_menu.AppendSeparator()
         lib_menu.Append(lib_detect)
+        lib_menu.Append(lib_merge)
         lib_menu.Append(lib_reimport)
         lib_menu.Append(lib_clean)
 

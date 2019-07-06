@@ -10,12 +10,16 @@ import wx
 class Config:
 
     def __init__(self, parent):
+        self.parent = parent
+
         logging.info("Loading Config")
         config_path = self.get_config_path()
         self.config_path = config_path / Path('config.ini')
         self.debug_path = config_path / Path('debug.ini')
         self.dimensions_path = config_path / Path('dimensions.pkl')
-        self.parent = parent
+        self.backup_path = config_path / Path('backup')
+        if not self.backup_path.exists():
+            self.backup_path.mkdir()
 
         if self.debug_path.exists() and self.dimensions_path.exists():
             self.load_debug()

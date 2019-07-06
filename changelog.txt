@@ -1,76 +1,8 @@
-V 0.1.0
-    Alpha Release to Public
-
-V 1.2.5
-    Code
-    - Renamed functions according to PEP8 standards
-
-V 1.2.4
-    Code
-    - Duplicate dummy functions removed
-
-V 1.2.3
-    Features
-    - Added Ability to select multiple assets to be queued with context menu
-
-    Code
-    - Merged OnList and OnTree into MainFrame
-
-V 1.2.2
-    Feature
-    - ADI now remembers the last position when closed
-
-V1.2.1
-    BugFixes
-    - Fixed user folder generation when determining User Folder
-    - Fixed creating of default folders before first time setup is completed
-
-V1.2.0
-    Features
-    - Threading implemented on file manipulation
-
-    Known Bugs
-    - Threading makes the progress bars go wonk, expect weird behavior
-    - Threading also makes status of items in queue change before they are actually finished
-
-V 1.1.4
-    - Bugfixed the detect all menu option
-    - When selecting a tree item it will now refer to the data in self.assets.list instead of the data inside the tree itself
-
-V 1.1.3
-    Features
-    - Added Queueing of assets inside a directory
-    - Added Detection of Assets in directory
-    - Added menu option for Detection of all assets in library
-    - Moved Update Library from File to Data
-
-    Known Bugs
-    - File Quit doesn't work, can use x in window
-
-V 1.1.2
-    - Added .gitignore
-    - Changed Logging start message
-
-V 1.1.1
-    - Added Check if installed to menus
-        - only available if pkl for asset exists and asset is not installed
-
 V 1.1.0
-    - Program remembers size of main window
-    - Code changes to AssetItem
-        - size to _size, size property now returns a string when calling asset.size
-        - properties added to simplify data retrieval
-            - zipStr, pklStr, installedStr, installedTimeStr
-        - Added a productName attribute to AssetItem that is a formatted version of name for readability
-        - fileList stored inside AssetItem now, will load from file on creation if pkl exists.
-    - Config
-        - Converted Config class to use configobj and create an ini file for settings
-        - Config file now located in local folder dependant on OS
-            - windows ~/AppData/Roaming/ADI/
-            - mac     ~/Library/Application Support/ADI/
-            - linux   ~/.ADI/
-        - If no config file is found, open config frame to set folders
-    - Fixed sorting of trees
+    - Features
+        - Added backup of assets into config_path/ADI/backup/
+            - These can be used to save asset info of zips you have deleted should you need to wipe your database
+            - Created a menu option to merge backup assets into current database
 
 V 1.0.0
     Initial Release

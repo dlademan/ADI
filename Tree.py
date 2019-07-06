@@ -1,8 +1,10 @@
 from zipfile import ZipFile
+from pathlib import Path
 
 import wx
 import logging
 import threading
+import pickle
 
 from Asset import AssetItem
 
@@ -58,6 +60,9 @@ class FolderTree(wx.TreeCtrl):
 
             elif sub.with_suffix('.zip').exists():
                 asset = self.main.assets.append(sub.with_suffix('.zip'))
+                backup_path = self.main.config.backup_path / Path(str(asset.zip.stem) + '.pkl')
+                with open(backup_path, 'wb') as out:
+                    pickle.dump(asset, out)
 
                 product_name = self._strip_product_name(asset.product_name)
                 if term not in product_name and term not in asset.tags: continue
