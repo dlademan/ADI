@@ -1,3 +1,7 @@
+V 1.1.1
+    - Bug Fixes
+        - Fixed creation of ADI/backup not checking if ADI/ was already created
+
 V 1.1.0
     - Features
         - Added backup of assets into config_path/ADI/backup/

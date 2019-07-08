@@ -19,7 +19,7 @@ class Config:
         self.dimensions_path = config_path / Path('dimensions.pkl')
         self.backup_path = config_path / Path('backup')
         if not self.backup_path.exists():
-            self.backup_path.mkdir()
+            self.backup_path.mkdir(parents=True)
 
         if self.debug_path.exists() and self.dimensions_path.exists():
             self.load_debug()
