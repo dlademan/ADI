@@ -45,11 +45,140 @@ It is recommended to restart Daz after installing assets.
 
 -------------------------------------------------------------------------------
 
-Installation instructions
+Setup and Use instructions
 
 -------------------------------------------------------------------------------
 
-Unzip to desired folder and run adi.exe in the data folder.
+ADI is a package manager that installs assets and manages your library for ease of use.
+
+All assets must be supplied to ADI as a zip file, and an error will show in the 
+log file if the zip has errors or is malformed. If an asset is not detected by
+ADI, please check that the asset package is not a rar and is a valid zip file.
+
+Setup:
+
+	1) Download the most recent version of ADI from renderosity.
+	
+	2) Extract to desired location. 
+	   ADI will not install as a windows application.
+	   
+	3) Navigate into the ADI folder inside, and run adi.exe to start the program
+	
+First Launch:
+
+	Upon first launch of ADI, the Configuration window will pop up. Default 
+	directories of Daz Studio are provided, but yours will likely be different.
+	Read below for descriptions of each setting.
+	
+Configuration Options:
+	
+	Zip Archive: 
+		This is where your asset packages are located. As described before, 
+		only valid zip files are accepted by ADI. Feel free to sort your assets
+		in folders, as ADI will reflect this in the tree view. 
+		
+		The folder structure of your archive will apply tags to the asset, 
+		allowing you to search for tags that are not in the asset's title. 
+		e.g. An asset in "Genesis 8/Hair/" can be searchable by "genesis 8" OR
+		"hair", capitalization and spaces not needed.
+		
+	Daz Library:
+		This is where assets are installed to, the folder that Daz Studio looks
+		in for assets. Be sure to not point it at the folder containing 
+		"My Library" or "Content". ADI will automatically format zips to not 
+		include the "Content" folder included in DIM zips and "My Library"
+		used in other stores formats such as Renderosity.
+		
+	Clear Queue on program close:
+		This option wipes your queue each time you start ADI. Mark to personal
+		preference.
+		
+	Expand tree fully:
+		This applies to the tree view for assets, starting with a completely
+		expanded tree when you refresh the UI or start ADI.
+		
+	Close queue dialog upon completion:
+		When you start a queue or install/uninstall a single asset, a dialog 
+		appears to show the progress of each asset operation being completed. 
+		This options will close the dialog automatically upon finishing all 
+		required tasks.
+		
+Processing Assets:
+	
+	ADI will let you install and uninstall single assets via the context menu 
+	(right click) or the appropriate button under the asset description. A 
+	dialog will appear, with the asset being processed along with a progress 
+	bar showing how far along it is.
+	
+	If one wants to process multiple assets at once, use the context menu or
+	applicable button to queue the asset to be processed. You can view the
+	status of the queue under the asset description area on the Queue tab.
+	There is a clear queue button on the toolbar for quick wiping.
+	
+	When all assets are queued to the user's satisfaction, press start queue
+	at the top left of the program. A similar dialog will appear with asset 
+	names and progress bars, each process occuring on their own thread.
+	
+Menu options:
+	
+	File:
+		
+		Refresh UI:
+			This option will rebuild the tree from scratch, and add any files 
+			that have been added to the archive since ADI has started.
+			
+		Quit:
+			Safely closes ADI. This is the same as pressing the X on the main 
+			window frame to close ADI.
+			
+	Library:
+		
+		Open Zip Archive:
+			This opens a new explorer window to the location of your zip 
+			archive.
+			
+		Open Library:
+			This opens a new explorer window to the location where your assets
+			are installed.
+			
+		Detect Installed Assets:
+			This analyzes your current library and compares them to the assets
+			imported to ADI. Assets installed manually or via DIM will be 
+			detected, allowing ADI to work with existing libraries.
+			
+		Merge Backed up Assets:
+			All asset information is saved to local files in 
+			<local roaming>ADI/Backup/
+			
+			If your ADI databased ever becomes corrupt, you can use this option
+			to import these assets back into ADI, without needing the original 
+			zip. ADI will then be allowed to detect them and uninstall if 
+			desired.
+			
+		Reimport All Assets:
+			This will wipe the ADI databased currently being used and reimport
+			all assets in your archive. If you do not still have a zip file for
+			an asset, please merge the backups with the previous option.
+			
+		Clean Library:
+			This option removes assets from your ADI database if it is not 
+			installed and the zip does not exist. This can be used to get rid
+			of assets you had installed but no longer use.
+			
+	View:
+	
+		Log:
+			This is a log of all actions performed by ADI located in 
+			<local roaming>ADI/
+			Use this to check what you last did, or diagnose problems when
+			reporting errors to me.
+			
+		Configuration:
+			This launches the settings dialog, and is the same action as the
+			button on the toolbar.
+			
+		About:
+			Information about me and ADI.
 
 -------------------------------------------------------------------------------
 

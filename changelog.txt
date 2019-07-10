@@ -1,6 +1,8 @@
 V 1.1.1
     - Bug Fixes
         - Fixed creation of ADI/backup not checking if ADI/ was already created
+	- Updated Readme with more instructions
+	- Updated about.png to accurately reflect version and build date.
 
 V 1.1.0
     - Features
