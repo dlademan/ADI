@@ -14,10 +14,11 @@ Product description
 
 -------------------------------------------------------------------------------
 
-ADI facilitates the installation and uninstallation of assets for Daz Studio and Poser.
+ADI facilitates the installation and uninstallation of assets for Daz Studio.
 
 Features:
-	- Saves the structure of zips to uninstall later, without the zip needing to be present
+	- Saves the structure of zips to uninstall later, without the zip needing 
+	  to be present
 	- Tree view to categorize your zip packages
 	- List view for easy readability
 	- Search for assets via asset name or dynamic tags based on folder structure
@@ -49,7 +50,8 @@ Setup and Use instructions
 
 -------------------------------------------------------------------------------
 
-ADI is a package manager that installs assets and manages your library for ease of use.
+ADI is a package manager that installs assets and manages your library for ease
+of use.
 
 All assets must be supplied to ADI as a zip file, and an error will show in the 
 log file if the zip has errors or is malformed. If an asset is not detected by
@@ -79,7 +81,7 @@ Configuration Options:
 		
 		The folder structure of your archive will apply tags to the asset, 
 		allowing you to search for tags that are not in the asset's title. 
-		e.g. An asset in "Genesis 8/Hair/" can be searchable by "genesis 8" OR
+		e.g. an asset in "Genesis 8/Hair/" can be searchable by "genesis 8" OR
 		"hair", capitalization and spaces not needed.
 		
 	Daz Library:
@@ -118,14 +120,74 @@ Processing Assets:
 	When all assets are queued to the user's satisfaction, press start queue
 	at the top left of the program. A similar dialog will appear with asset 
 	names and progress bars, each process occuring on their own thread.
+		
+Tree View:
+	
+	The tree view will crawl your provided Zip Archive and create a tree based 
+	on the folder structure. This folder structure is where ADI creates tags for 
+	assets.
+	
+List View:
+
+	The List View lists all of your assets in the ADI databse. The user can 
+	directly act with assets here just as with the tree view.
+	
+Directory Options:
+	
+	Queue Directory to be Installed:
+		This only queues assets to be installed if the asset is not 
+		installed  at the moment. It will ignore all assets already 
+		installed.
+		
+	Queue Directory to be Uninstalled:
+		This only queues assets to be installed if the asset is installed 
+		at the moment. It will ignore all assets not installed.
+		
+	Open Location:
+		Opens the selected directory in explorer.
+		
+	Detect Assets in Directory:
+		This option allows the user to selectively detect assets, only 
+		checking the assets in this directory.
+		
+	Refresh:
+		This option will rebuild the tree view and list view from scratch,
+		and add any files that have been added to the archive since ADI has 
+		started.
+		
+Asset Options:
+
+	Install:
+		Immediately installs the asset to the provided library location.
+		
+	Queue Install:
+		Queues the asset to be installed at a later time.
+		
+	Uninstall:
+		Immediately uninstalls the asset to the provided library location.
+		
+	Queue Uninstall:
+		Queues the asset to be uninstalled at a later time.
+		
+	Open File Location:
+		Opens the folder containing this zip file, if it exists.
+		
+	Detect Asset:
+		Detects if this specific asset is installed.
+		
+	Refresh:
+		This option will rebuild the tree view and list view from scratch,
+		and add any files that have been added to the archive since ADI has 
+		started.
 	
 Menu options:
 	
 	File:
 		
-		Refresh UI:
-			This option will rebuild the tree from scratch, and add any files 
-			that have been added to the archive since ADI has started.
+		Refresh:
+			This option will rebuild the tree view and list view from scratch,
+			and add any files that have been added to the archive since ADI has 
+			started.
 			
 		Quit:
 			Safely closes ADI. This is the same as pressing the X on the main 
@@ -179,6 +241,14 @@ Menu options:
 			
 		About:
 			Information about me and ADI.
+			
+Useful terms:
+
+	DNE:
+		Does not Exist
+		
+		This is used when a zip package has been removed from your archive but
+		is still in ADI.
 
 -------------------------------------------------------------------------------
 

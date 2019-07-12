@@ -112,22 +112,40 @@ class AssetList(object):
         if method == "size" and self.sort_method == "size":
             self.sort_descending = not self.sort_descending
             self.list.sort(key=lambda x: x.size_raw, reverse=self.sort_descending)
-            return
+
         elif method == "size":
             self.sort_method = "size"
             self.sort_descending = True
             self.list.sort(key=lambda x: x.size_raw, reverse=self.sort_descending)
-            return
+
+        elif method == "zip" and self.sort_method == "zip":
+            self.sort_descending = not self.sort_descending
+            self.list.sort(key=lambda x: x.zip.exists(), reverse=self.sort_descending)
+
+        elif method == "zip":
+            self.sort_method = "zip"
+            self.sort_descending = True
+            self.list.sort(key=lambda x: x.zip.exists(), reverse=self.sort_descending)
+
+        elif method == "installed" and self.sort_method == "installed":
+            self.sort_descending = not self.sort_descending
+            self.list.sort(key=lambda x: x.installed, reverse=self.sort_descending)
+
+        elif method == "installed":
+            self.sort_method = "installed"
+            self.sort_descending = False
+            self.list.sort(key=lambda x: x.installed, reverse=self.sort_descending)
 
         elif method == "name" and self.sort_method == "name":
             self.sort_descending = not self.sort_descending
             self.list.sort(key=lambda x: x.product_name, reverse=self.sort_descending)
-            return
+
         elif method == "name":
             self.sort_method = "name"
             self.sort_descending = False
             self.list.sort(key=lambda x: x.size_raw, reverse=self.sort_descending)
-            return
+
+        return
 
 
 class AssetItem(object):

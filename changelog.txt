@@ -1,8 +1,27 @@
+V 1.3.0
+    - Context Menus
+        - Added refresh to context menu in list and tree
+        - Removed Force menu from tree context
+        - Added Separators to create better visual cues
+
+    - List View
+        - Added sorting by Installed and Zip
+        - All column headers are now sortable
+
+    - Refresh
+        - Added a popup while refreshing folders and files
+        - The main window now dims while refreshing to indicate a process is occurring
+        - Added a quick action for Refresh in the toolbar
+
+    - Added an error popup if the user tries to start the queue with nothing in it
+    - Fixed Splash Screen staying above other unrelated programs as it loaded.
+
 V 1.2.0
     - Features
         - Added ability to sort list by size or name
             - Clicking size column header once will sort descending, second ascending
             - Clicking name column header once will sort ascending, second descending
+
     - Capitalized Zip in list header
 
 V 1.1.1

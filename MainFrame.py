@@ -83,9 +83,9 @@ class MainFrame(wx.Frame):
         bmp_splash = wx.Bitmap('icons/about.png', wx.BITMAP_TYPE_PNG)
         splashStyle = wx.adv.SPLASH_CENTRE_ON_SCREEN
 
-        self.splash = wx.adv.SplashScreen(bmp_splash, splashStyle,
-                                     2000, None, -1, wx.DefaultPosition, wx.DefaultSize,
-                                     wx.BORDER_SIMPLE | wx.STAY_ON_TOP)
+        # self.splash = AboutFrame(splash=True)
+
+        self.splash = wx.adv.SplashScreen(bmp_splash, splashStyle, 2000, None, -1, wx.DefaultPosition, wx.DefaultSize, wx.BORDER_SIMPLE)
 
         # self.splash.Bind(wx.EVT_CLOSE, self.on_splash_close)
 
@@ -230,6 +230,14 @@ class MainFrame(wx.Frame):
 
     def queue_process(self, event):
         processes = []
+        self.right_notebook.SetSelection(1)
+
+        if len(self.queue.list) == 0:
+            queue_dialog = wx.MessageDialog(self, 'Cannot Start Queue, no processes in queue.',
+                                            style=wx.OK | wx.STAY_ON_TOP | wx.ICON_ERROR)
+            queue_dialog.ShowModal()
+            return
+
         for item in self.queue.list:
             if item.status != 2:
                 if item.process:
@@ -250,7 +258,6 @@ class MainFrame(wx.Frame):
         dialog.button_close.Disable()
         self.queue.in_progress = True
         self.queue.save()
-        self.right_notebook.SetSelection(1)
         logging.info("Starting Queued Processes")
 
         queue_length = 0
@@ -364,6 +371,10 @@ class MainFrame(wx.Frame):
         col = event.GetColumn()
         if col == 0:
             self.assets.sort("name")
+        elif col == 1:
+            self.assets.sort("zip")
+        elif col == 2:
+            self.assets.sort("installed")
         elif col == 3:
             self.assets.sort("size")
         self.update_all()
@@ -459,9 +470,19 @@ class MainFrame(wx.Frame):
             self.checkbox_zip.Enable()
 
 
-    def on_refresh(self, event):
+    def on_refresh(self, event=None):
+        self.disable_frame()
+        dialog = MessageDialog(parent=self, message="Refreshing folders and files...")
+
+        refresh_thread = Thread(target=self.on_refresh_worker,
+                                args=[dialog])
+        refresh_thread.start()
+
+    def on_refresh_worker(self, dialog):
         self.tree_library.make()
         self.update_all()
+        dialog.on_close()
+        self.enable_frame()
 
     def on_reimport_assets(self, event):
         self.disable_frame()
@@ -575,11 +596,11 @@ class MainFrame(wx.Frame):
                                         self.queue_append, asset, True)
                 popup_menu.AppendSeparator()
             if asset.zip.exists():
-                self.helper_menu_option(event, popup_menu, 'Open Location',
+                self.helper_menu_option(event, popup_menu, 'Open File Location',
                                         self.open_directory, event, asset.path)
 
             self.helper_menu_option(event, popup_menu, 'Detect Asset', self.on_detect_asset, asset)
-            self.PopupMenu(popup_menu, event.GetPoint())
+
         elif count > 1:
             selected = [self.ctrl_asset.GetFirstSelected()]
             self.selected = []
@@ -598,7 +619,8 @@ class MainFrame(wx.Frame):
             self.helper_menu_option(event, popup_menu, 'Queue selected to be Uninstalled',
                                     self.queue_append_list, self.selected, False)
 
-            self.PopupMenu(popup_menu, event.GetPoint())
+        self.helper_menu_option(event, popup_menu, 'Refresh', self.on_refresh)
+        self.PopupMenu(popup_menu, event.GetPoint())
 
     def on_tree_sel(self, event):
         # Get the selected item object
@@ -701,22 +723,24 @@ class MainFrame(wx.Frame):
                                             self.on_asset_uninstall, event, asset)
                     self.helper_menu_option(event, popup_menu, 'Queue Uninstall',
                                             self.queue_append, asset, False)
+                    popup_menu.AppendSeparator()
 
                 elif not asset.installed and asset.zip.exists():
                     self.helper_menu_option(event, popup_menu, 'Install',
                                             self.on_asset_install, event, asset)
                     self.helper_menu_option(event, popup_menu, 'Queue Install',
                                             self.queue_append, asset, True)
+                    popup_menu.AppendSeparator()
 
-                if not asset.path.is_dir():
-                    self.helper_menu_option(event, force_menu, 'Install',
-                                            self.on_asset_install, event, asset)
-                    self.helper_menu_option(event, force_menu, 'Uninstall',
-                                            self.on_asset_uninstall, event, asset)
-                    popup_menu.AppendSubMenu(force_menu, '&Force')
+                # if not asset.path.is_dir():
+                #     self.helper_menu_option(event, force_menu, 'Install',
+                #                             self.on_asset_install, event, asset)
+                #     self.helper_menu_option(event, force_menu, 'Uninstall',
+                #                             self.on_asset_uninstall, event, asset)
+                #     popup_menu.AppendSubMenu(force_menu, '&Force')
 
                 if asset.zip.exists():
-                    self.helper_menu_option(event, popup_menu, 'Open Location',
+                    self.helper_menu_option(event, popup_menu, 'Open File Location',
                                             self.open_directory, event, asset.path)
 
                 self.helper_menu_option(event, popup_menu, 'Detect Asset', self.on_detect_asset, asset)
@@ -725,12 +749,11 @@ class MainFrame(wx.Frame):
                                         self.on_queue_directory, asset.path, True)
                 self.helper_menu_option(event, popup_menu, 'Queue directory to be uninstalled',
                                         self.on_queue_directory, asset.path, False)
+                popup_menu.AppendSeparator()
                 self.helper_menu_option(event, popup_menu, 'Open Location',
                                         self.open_directory, event, asset.path)
                 self.helper_menu_option(event, popup_menu, 'Detect assets in directory',
                                         self.detect_directory, event, asset.path)
-
-            self.PopupMenu(popup_menu, event.GetPoint())  # show menu at cursor
 
         elif count > 1:
             selected = self.tree_library.GetSelections()
@@ -746,22 +769,28 @@ class MainFrame(wx.Frame):
                                     self.queue_append_list, self.selected, True)
             self.helper_menu_option(event, popup_menu, 'Queue selected to be Uninstalled',
                                     self.queue_append_list, self.selected, False)
+            popup_menu.AppendSeparator()
 
-            self.PopupMenu(popup_menu, event.GetPoint())  # show menu at cursor
+        self.helper_menu_option(event, popup_menu, 'Refresh', self.on_refresh)
+        self.PopupMenu(popup_menu, event.GetPoint())  # show menu at cursor
 
     def on_queue_context(self, event):
         item = event.GetItem()
         popupMenu = wx.Menu()
 
-        logging.debug(item.GetText())
-
         self.helper_menu_option(event, popupMenu, 'Remove from queue', self.queue.remove, item.GetText())
-        self.PopupMenu(popupMenu, event.GetPoint())
+        point = event.GetPoint()
+        self.PopupMenu(popupMenu, point)
+
+    def on_empty_context(self, event):
+        popup_menu = wx.Menu() # create menu
+        self.helper_menu_option(event, popup_menu, 'Refresh', self.on_refresh) # add refresh menu option
+        self.PopupMenu(popup_menu, event.GetPoint())  # show menu at cursor
 
     def create_menubar(self):
         logging.info("Creating Menubar")
         file_menu = wx.Menu()  # file
-        file_refresh = wx.MenuItem(file_menu, -1, '&Refresh UI')
+        file_refresh = wx.MenuItem(file_menu, -1, '&Refresh')
         file_quit = wx.MenuItem(file_menu, wx.ID_EXIT, '&Quit')
 
         self.Bind(wx.EVT_MENU, self.on_refresh, file_refresh)
@@ -834,6 +863,10 @@ class MainFrame(wx.Frame):
                                                   wx.Bitmap('icons/clear.png'),
                                                   'Reset Filters')
 
+        self.tool_refresh = self.toolbar.AddTool(wx.ID_ANY, 'Refresh',
+                                               wx.Bitmap('icons/refresh.png'),
+                                               'Refresh files and folders')
+
         self.tool_settings = self.toolbar.AddTool(wx.ID_PREFERENCES, 'Configuration',
                                                   wx.Bitmap('icons/config.png'),
                                                   'Open Configuration')
@@ -841,6 +874,7 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_TOOL, self.queue_process, self.tool_start)
         self.Bind(wx.EVT_TOOL, self.queue_clear, self.tool_clear)
         self.Bind(wx.EVT_TOOL, self.show_settings, self.tool_settings)
+        self.Bind(wx.EVT_TOOL, self.on_refresh, self.tool_refresh)
         self.Bind(wx.EVT_TOOL, self.on_button_reset_filters, self.reset_filters)
 
         self.toolbar.Realize()
@@ -909,6 +943,7 @@ class MainFrame(wx.Frame):
         # bind on actions.txt
         self.tree_library.Bind(wx.EVT_TREE_SEL_CHANGED, self.on_tree_sel)
         self.tree_library.Bind(wx.EVT_TREE_ITEM_MENU, self.on_tree_context)
+        self.tree_library.Bind(wx.EVT_CONTEXT_MENU, self.on_empty_context)
         #
 
         self.ctrl_asset.Bind(wx.EVT_LIST_ITEM_SELECTED, self.on_list_sel)

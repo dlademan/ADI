@@ -135,7 +135,7 @@ class ConfigFrame(wx.Frame):
 
         self.parent.config.save_config()
         self.on_close(event)
-        self.parent.tree_library.make()
+        self.parent.on_refresh()
 
     def on_close(self, event=None):
         if hasattr(self, '_disabler'):
