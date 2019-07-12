@@ -18,6 +18,8 @@ class AssetList(object):
         self.clear = clear
         self.path = parent.config.library / Path(self.name)
         self.list = self.load()  # list of AssetItems
+        self.sort_method = None
+        self.sort_descending = False
 
     def load(self):
         if self.clear or self.parent.config.first:
@@ -105,6 +107,27 @@ class AssetList(object):
         self.list[i].installed = installed
         self.list[i].installed_time = time
         self.save()
+
+    def sort(self, method=None):
+        if method == "size" and self.sort_method == "size":
+            self.sort_descending = not self.sort_descending
+            self.list.sort(key=lambda x: x.size_raw, reverse=self.sort_descending)
+            return
+        elif method == "size":
+            self.sort_method = "size"
+            self.sort_descending = True
+            self.list.sort(key=lambda x: x.size_raw, reverse=self.sort_descending)
+            return
+
+        elif method == "name" and self.sort_method == "name":
+            self.sort_descending = not self.sort_descending
+            self.list.sort(key=lambda x: x.product_name, reverse=self.sort_descending)
+            return
+        elif method == "name":
+            self.sort_method = "name"
+            self.sort_descending = False
+            self.list.sort(key=lambda x: x.size_raw, reverse=self.sort_descending)
+            return
 
 
 class AssetItem(object):

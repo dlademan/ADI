@@ -1,3 +1,10 @@
+V 1.2.0
+    - Features
+        - Added ability to sort list by size or name
+            - Clicking size column header once will sort descending, second ascending
+            - Clicking name column header once will sort ascending, second descending
+    - Capitalized Zip in list header
+
 V 1.1.1
     - Bug Fixes
         - Fixed creation of ADI/backup not checking if ADI/ was already created

@@ -27,8 +27,6 @@ class MainFrame(wx.Frame):
     parent, id, title
     """
 
-
-
     def __init__(self, parent, id, title):
         wx.Frame.__init__(self, parent, id, title, wx.DefaultPosition, (1050, 800), style=wx.DEFAULT_FRAME_STYLE)
         self.show_splash()
@@ -361,6 +359,14 @@ class MainFrame(wx.Frame):
         self.assets.save()
         logging.info("------------ ADI Closed")
         self.Destroy()
+
+    def on_col_click(self, event=None):
+        col = event.GetColumn()
+        if col == 0:
+            self.assets.sort("name")
+        elif col == 3:
+            self.assets.sort("size")
+        self.update_all()
 
     def on_button1(self, event):
         if self.button1.GetLabel() == "Queue Install":
@@ -887,7 +893,7 @@ class MainFrame(wx.Frame):
 
         self.ctrl_asset = wx.ListCtrl(self.notebook_library, style=wx.LC_REPORT)
         self.ctrl_asset.InsertColumn(0, "Asset", width=221)
-        self.ctrl_asset.InsertColumn(1, "zip", width=50)
+        self.ctrl_asset.InsertColumn(1, "Zip", width=50)
         self.ctrl_asset.InsertColumn(2, "Installed", width=60)
         self.ctrl_asset.InsertColumn(3, "Size", width=65)
 
@@ -907,6 +913,7 @@ class MainFrame(wx.Frame):
 
         self.ctrl_asset.Bind(wx.EVT_LIST_ITEM_SELECTED, self.on_list_sel)
         self.ctrl_asset.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.on_list_context)
+        self.ctrl_asset.Bind(wx.EVT_LIST_COL_CLICK, self.on_col_click)
 
         self.panel_left.SetSizer(left_box)
 
