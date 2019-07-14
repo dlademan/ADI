@@ -136,14 +136,12 @@ class Config:
             self.win_size = (1300, 800)
             self._dimensions.append(self.win_size)
 
-        self.win_pos = self._dimensions[1]
         if len(self._dimensions) > 1:
             self.win_pos = self._dimensions[1]
         else:
             self.win_pos = self.parent.GetPosition().Get()
             self._dimensions.append(self.win_pos)
 
-        self.first = self._dimensions[2]
         if len(self._dimensions) > 2:
             self.first = self._dimensions[2]
         else:
