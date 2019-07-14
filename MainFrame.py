@@ -10,7 +10,7 @@ import platform
 import winsound
 import pickle
 
-from Asset import AssetList
+from Asset import AssetList, AssetItem
 from QueueADI import QueueList
 from Config import Config
 from ConfigFrame import ConfigFrame
@@ -27,8 +27,10 @@ class MainFrame(wx.Frame):
     parent, id, title
     """
 
+    version = "1.5.0"
+
     def __init__(self, parent, id, title):
-        wx.Frame.__init__(self, parent, id, title, wx.DefaultPosition, (1050, 800), style=wx.DEFAULT_FRAME_STYLE)
+        wx.Frame.__init__(self, parent, id, title, wx.DefaultPosition, (1300, 800), style=wx.DEFAULT_FRAME_STYLE)
         self.show_splash()
 
         self.config = Config(self)
@@ -42,12 +44,10 @@ class MainFrame(wx.Frame):
         if self.config.clear_queue and not self.queue.in_progress:
             self.queue.clear_list()
 
+        self.check_version()
         self.create_menubar()
         self.create_toolbar()
         self.create_body()
-
-        self.update_all()
-        self.Centre()
 
         if self.config.first:
             self.splash.Close()
@@ -77,6 +77,8 @@ class MainFrame(wx.Frame):
                 self.queue.save()
                 self.update_queue()
 
+        if self.config.detect: self.detect_directory()
+        else: self.update_all()
         self.Show()
 
     def show_splash(self):
@@ -85,13 +87,40 @@ class MainFrame(wx.Frame):
 
         # self.splash = AboutFrame(splash=True)
 
-        self.splash = wx.adv.SplashScreen(bmp_splash, splashStyle, 2000, None, -1, wx.DefaultPosition, wx.DefaultSize, wx.BORDER_SIMPLE)
+        self.splash = wx.adv.SplashScreen(bmp_splash, splashStyle, 2000, None, -1,
+                                          wx.DefaultPosition,
+                                          wx.DefaultSize,
+                                          wx.BORDER_SIMPLE)
 
         # self.splash.Bind(wx.EVT_CLOSE, self.on_splash_close)
 
     def on_splash_close(self, event=None):
         self.Show()
         event.Skip()
+
+    def check_version(self):
+        if not hasattr(self.config, "version") or self.config.version != self.version:
+            dialog = MessageDialog(parent=self, message="Upgrading database...")
+            # detect_thread = Thread(target=self.database_upgrade_worker, args=[dialog])
+            # detect_thread.start()
+
+            logging.info("Upgrading database...")
+            self.config = Config(self, self.config)
+            for i, asset in enumerate(self.assets.list):
+                self.assets.list[i] = AssetItem(other=asset)
+
+            self.config.version = self.version
+            self.config.save_dimensions()
+
+            dialog.on_close()
+
+    def database_upgrade_worker(self, dialog):
+        logging.info("Upgrading database...")
+        self.Config = Config(self, self.config)
+        for asset in self.assets.list:
+            asset = AssetItem(other=asset)
+
+        dialog.on_close()
 
     def resize_columns(self, event=None):
         w, h = self.GetSize().Get()
@@ -100,6 +129,16 @@ class MainFrame(wx.Frame):
 
     def in_progress_dialog(self):
         pass
+
+    def show_readme(self, event=None):
+        logging.debug("Show Readme")
+
+        path_readme = Path.cwd() / Path('Readme_.txt')
+
+        if path_readme.exists():
+            os.startfile(path_readme)
+        else:
+            os.startfile(Path.cwd().parent / Path('Readme_.txt'))
 
     def show_log(self, event=None):
         logging.debug("Show log")
@@ -133,6 +172,7 @@ class MainFrame(wx.Frame):
 
     def asset_install_worker(self, event, asset, dialog):
         self.disable_frame()
+        dialog.button_close.Disable()
 
         asset.install(self, self.config.library, gauge=dialog.gauges[0])
         self.assets.save()
@@ -141,6 +181,7 @@ class MainFrame(wx.Frame):
             dialog.on_close(event)
 
         self.update_all()
+        dialog.button_close.Enable()
         self.enable_frame()
         self.sound_action_complete()
 
@@ -154,6 +195,7 @@ class MainFrame(wx.Frame):
 
     def asset_uninstall_worker(self, event, asset, dialog):
         self.disable_frame()
+        dialog.button_close.Disable()
         asset.uninstall(self, self.config.library, gauge=dialog.gauges[0])
         self.assets.save()
 
@@ -161,6 +203,7 @@ class MainFrame(wx.Frame):
             dialog.on_close(event)
 
         self.update_all()
+        dialog.button_close.Enable()
         self.enable_frame()
         self.sound_action_complete()
 
@@ -198,15 +241,16 @@ class MainFrame(wx.Frame):
                                args=[self, True])
         detect_thread.start()
 
-    def detect_directory(self, event=None, directory=None, update=False):
+    def detect_directory(self, event=None, directory=None, wait=False):
 
-        dialog = MessageDialog(parent=self, message="Reimporting and detecting assets...")
+        dialog = MessageDialog(parent=self, message="Detecting assets...")
 
         detect_thread = Thread(target=self.detect_directory_worker,
                                args=[directory, dialog])
         detect_thread.start()
 
     def detect_directory_worker(self, directory=None, dialog=None):
+        self.disable_frame()
         if directory is None:
             directory = self.config.archive
 
@@ -227,6 +271,7 @@ class MainFrame(wx.Frame):
             dialog.on_close()
 
         self.update_all()
+        self.enable_frame()
 
     def queue_process(self, event):
         processes = []
@@ -252,9 +297,6 @@ class MainFrame(wx.Frame):
         queue_thread.start()
 
     def queue_process_worker(self, dialog):
-        if len(self.queue.list) < 1:
-            logging.info("No queued assets, nothing processed")
-            return
         dialog.button_close.Disable()
         self.queue.in_progress = True
         self.queue.save()
@@ -344,8 +386,10 @@ class MainFrame(wx.Frame):
             elif term in product_name or term in asset.tags:
                 self.ctrl_asset.InsertItem(i, asset.product_name)
                 self.ctrl_asset.SetItem(i, 1, asset.zip_str)
-                self.ctrl_asset.SetItem(i, 2, asset.installed_str)
-                self.ctrl_asset.SetItem(i, 3, asset.size_display)
+                self.ctrl_asset.SetItem(i, 2, asset.size_display)
+                self.ctrl_asset.SetItem(i, 3, asset.imported_time_str)
+                self.ctrl_asset.SetItem(i, 4, asset.installed_time_str)
+
                 i += 1
 
     def update_queue(self):
@@ -369,14 +413,22 @@ class MainFrame(wx.Frame):
 
     def on_col_click(self, event=None):
         col = event.GetColumn()
+        method = None
+
         if col == 0:
-            self.assets.sort("name")
+            method = "name"
         elif col == 1:
-            self.assets.sort("zip")
+            method = "zip"
         elif col == 2:
-            self.assets.sort("installed")
+            method = "size"
         elif col == 3:
-            self.assets.sort("size")
+            method = "import_time"
+        elif col == 4:
+            method = "installed"
+        elif col == 5:
+            method = "installed_time"
+
+        self.assets.sort(method)
         self.update_all()
 
     def on_button1(self, event):
@@ -404,8 +456,8 @@ class MainFrame(wx.Frame):
         self.checkbox_installed.SetValue(False)
         self.checkbox_not_installed.SetValue(False)
         self.checkbox_zip.SetValue(False)
-        self.update_assets()
-        self.tree_library.make()
+
+        self.on_refresh()
 
     def on_checkbox_installed(self, event):
         if self.checkbox_installed.IsChecked():
@@ -495,10 +547,11 @@ class MainFrame(wx.Frame):
     def reimport_assets_worker(self, dialog):
         logging.info("Removing stored asset info and reimporting")
         self.assets = AssetList(self, clear=True)
+        dialog.text_message.SetLabel("Reimporting assets...")
         self.tree_library.make()
 
-        detect_thread = Thread(target=self.detect_directory_worker,
-                               args=[None])
+        detect_thread = Thread(target=self.detect_directory_worker, args=[None])
+        dialog.text_message.SetLabel("Detecting assets...")
         detect_thread.start()
         detect_thread.join()
 
@@ -824,16 +877,20 @@ class MainFrame(wx.Frame):
         lib_menu.Append(lib_clean)
 
         view_menu = wx.Menu()
-        view_log = wx.MenuItem(view_menu, wx.ID_ANY, '&Log')
         view_settings = wx.MenuItem(view_menu, wx.ID_ANY, '&Configuration')
+        view_log = wx.MenuItem(view_menu, wx.ID_ANY, '&Log')
+        view_readme = wx.MenuItem(view_menu, wx.ID_ANY, '&Readme')
         view_about = wx.MenuItem(view_menu, wx.ID_ANY, '&About')
 
-        self.Bind(wx.EVT_MENU, self.show_log, view_log)
         self.Bind(wx.EVT_MENU, self.show_settings, view_settings)
+        self.Bind(wx.EVT_MENU, self.show_log, view_log)
+        self.Bind(wx.EVT_MENU, self.show_readme, view_readme)
         self.Bind(wx.EVT_MENU, self.show_about, view_about)
 
-        view_menu.Append(view_log)
         view_menu.Append(view_settings)
+        view_menu.AppendSeparator()
+        view_menu.Append(view_log)
+        view_menu.Append(view_readme)
         view_menu.Append(view_about)
 
         menu_bar = wx.MenuBar()
@@ -873,9 +930,9 @@ class MainFrame(wx.Frame):
 
         self.Bind(wx.EVT_TOOL, self.queue_process, self.tool_start)
         self.Bind(wx.EVT_TOOL, self.queue_clear, self.tool_clear)
-        self.Bind(wx.EVT_TOOL, self.show_settings, self.tool_settings)
-        self.Bind(wx.EVT_TOOL, self.on_refresh, self.tool_refresh)
         self.Bind(wx.EVT_TOOL, self.on_button_reset_filters, self.reset_filters)
+        self.Bind(wx.EVT_TOOL, self.on_refresh, self.tool_refresh)
+        self.Bind(wx.EVT_TOOL, self.show_settings, self.tool_settings)
 
         self.toolbar.Realize()
 
@@ -928,8 +985,11 @@ class MainFrame(wx.Frame):
         self.ctrl_asset = wx.ListCtrl(self.notebook_library, style=wx.LC_REPORT)
         self.ctrl_asset.InsertColumn(0, "Asset", width=221)
         self.ctrl_asset.InsertColumn(1, "Zip", width=50)
-        self.ctrl_asset.InsertColumn(2, "Installed", width=60)
-        self.ctrl_asset.InsertColumn(3, "Size", width=65)
+        self.ctrl_asset.InsertColumn(2, "Size", width=65)
+        self.ctrl_asset.InsertColumn(3, "Import Time", width=100)
+        # self.ctrl_asset.InsertColumn(4, "Installed", width=60)
+        self.ctrl_asset.InsertColumn(5, "Install Time", width=100)
+
 
         self.notebook_library.AddPage(self.tree_library, "Tree")
         self.notebook_library.AddPage(self.ctrl_asset, "List")
@@ -1035,8 +1095,8 @@ class MainFrame(wx.Frame):
         self.logger = logging.getLogger()
         self.logger.setLevel(logging.DEBUG)
         self.logger.propagate = False
-        handler_console = None
 
+        handler_console = None
         handlers = logging.getLogger().handlers
         for h in handlers:
             if isinstance(h, logging.StreamHandler):

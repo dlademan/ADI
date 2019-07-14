@@ -77,6 +77,12 @@ class ConfigFrame(wx.Frame):
         box_close_queue = wx.BoxSizer(wx.HORIZONTAL)
         box_close_queue.Add(self.checkbox_close_queue, 0, wx.EXPAND, 5)
 
+        self.checkbox_detect = wx.CheckBox(self.panel, label='Detect Assets on startup')
+        self.checkbox_detect.SetValue(self.parent.config.detect)
+
+        box_detect = wx.BoxSizer(wx.HORIZONTAL)
+        box_detect.Add(self.checkbox_detect, 0, wx.EXPAND, 5)
+
         cancelButton = wx.Button(self.panel, label='Close', size=wx.DefaultSize)
         cancelButton.Bind(wx.EVT_BUTTON, self.on_close)
 
@@ -104,6 +110,8 @@ class ConfigFrame(wx.Frame):
         box_vert.Add(0, SPACING, 0)
         box_vert.Add(box_close_queue, 0, wx.EXPAND, 20)
         box_vert.Add(0, SPACING, 0)
+        box_vert.Add(box_detect, 0, wx.EXPAND, 20)
+        box_vert.Add(0, SPACING, 0)
         box_vert.Add(box_buttons, 0, wx.EXPAND, 20)
         box_vert.Add(0, PADDING, 0)
 
@@ -128,12 +136,14 @@ class ConfigFrame(wx.Frame):
         self.parent.config.expand = self.checkbox_expand_tree.GetValue()
         self.parent.config.win_size = self.parent.GetSize()
         self.parent.config.close_dialog = self.checkbox_close_queue.GetValue()
+        self.parent.config.detect = self.checkbox_detect.GetValue()
 
         if self.parent.config.first:
             self.parent.show_main()
         self.parent.config.first = False
 
         self.parent.config.save_config()
+        self.parent.config.save_dimensions()
         self.on_close(event)
         self.parent.on_refresh()
 

@@ -143,7 +143,25 @@ class AssetList(object):
         elif method == "name":
             self.sort_method = "name"
             self.sort_descending = False
-            self.list.sort(key=lambda x: x.size_raw, reverse=self.sort_descending)
+            self.list.sort(key=lambda x: x.product_name, reverse=self.sort_descending)
+
+        elif method == "import_time" and self.sort_method == "import_time":
+            self.sort_descending = not self.sort_descending
+            self.list.sort(key=lambda x: x.imported_time, reverse=self.sort_descending)
+
+        elif method == "import_time":
+            self.sort_method = "import_time"
+            self.sort_descending = False
+            self.list.sort(key=lambda x: x.imported_time, reverse=self.sort_descending)
+
+        elif method == "installed_time" and self.sort_method == "installed_time":
+            self.sort_descending = not self.sort_descending
+            self.list.sort(key=lambda x: x.installed_time, reverse=self.sort_descending)
+
+        elif method == "installed_time":
+            self.sort_method = "installed_time"
+            self.sort_descending = False
+            self.list.sort(key=lambda x: x.installed_time, reverse=self.sort_descending)
 
         return
 
@@ -152,32 +170,46 @@ class AssetItem(object):
     """Class of a basic asset item
     :args: name=None, path=None, installed=False"""
 
-    def __init__(self, path=None, installed=False):
-        self.path = path
-        self.zip = path.with_suffix('.zip')
+    def __init__(self, path=None, installed=False, other=None):
+        if other:
+            self.__dict__ = other.__dict__.copy()
 
-        self.file_name = self.zip.name
+            if not hasattr(self, 'imported_time'):
+                self.imported_time = datetime.now()
 
-        if self.zip.exists():
-            self.file_list = self.create_file_list()
+            if self.installed_time is None:
+                self.installed_time = datetime.min
         else:
-            self.file_list = []
+            self.path = path
+            self.zip = path.with_suffix('.zip')
 
-        if self.zip.exists():
-            self.product_name = self._parse_product_name()
-        else:
-            self.product_name = path.stem
+            self.file_name = self.zip.name
 
-        self._size_ext = 'MB'  # default suffix
-        self.size_raw, self.size_display = self._calc_size()  # use self.size property to get string with units on size
+            if self.zip.exists():
+                self.file_list = self.create_file_list()
+            else:
+                self.file_list = []
 
-        self.installed = installed
-        self.installed_time = None
+            if self.zip.exists():
+                self.product_name = self._parse_product_name()
+            else:
+                self.product_name = path.stem
 
-        self.tags = self._create_tags()
+            self._size_ext = 'MB'  # default suffix
+            self.size_raw, self.size_display = self._calc_size()  # use self.size property to get string with units on size
+
+            self.installed = installed
+            self.installed_time = datetime.min
+            self.imported_time = datetime.now()
+
+            self.tags = self._create_tags()
 
     def __lt__(self, other):
         return self.product_name < other.product_name
+
+    # def copy_constructor(self, other):
+
+
 
     def _calc_size(self, places=2):
         if not self.path.exists() and self.path.is_dir():
@@ -344,7 +376,7 @@ class AssetItem(object):
             gauge.Pulse()
 
         self.installed = False
-        self.installed_time = None
+        self.installed_time = datetime.min
         logging.info(self.product_name + " uninstalled")
 
     def detect(self, parent, update=False):
@@ -363,14 +395,13 @@ class AssetItem(object):
                           str(fileCount) + "/" + str(totalCount) + " files were found")
         else:
             self.installed = False
-            self.installed_time = None
+            self.installed_time = datetime.min
             logging.debug("Set to not installed: " + self.product_name + " " +
                           str(fileCount) + "/" + str(totalCount) + " files were found")
 
         parent.assets.save()
         if update:
             parent.update_all()
-
 
     @property
     def size(self):
@@ -384,13 +415,6 @@ class AssetItem(object):
             return "DNE"
 
     @property
-    def pkl_str(self):
-        if self.pkl.exists():
-            return "Y"
-        else:
-            return "N"
-
-    @property
     def installed_str(self):
         if self.installed:
             return "Installed"
@@ -399,8 +423,15 @@ class AssetItem(object):
 
     @property
     def installed_time_str(self):
-        if isinstance(self.installed_time, datetime):
+        if self.installed_time == datetime.min:
+            return ""
+        else:
             return f"{self.installed_time:%Y-%m-%d %H:%M}"
+
+    @property
+    def imported_time_str(self):
+        if isinstance(self.imported_time, datetime):
+            return f"{self.imported_time:%Y-%m-%d %H:%M}"
         else:
             return ""
 

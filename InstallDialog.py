@@ -10,8 +10,7 @@ class InstallDialog(wx.Frame):
         wx.Frame.__init__(self, parent, id, title,
                           wx.DefaultPosition,
                           size=(500, 180),
-                          style=wx.SYSTEM_MENU |
-                                wx.CLIP_CHILDREN)
+                          style=wx.SYSTEM_MENU | wx.CLIP_CHILDREN | wx.FRAME_NO_TASKBAR | wx.FRAME_FLOAT_ON_PARENT)
 
         if processes is None:
             processes = ["Installing Test Asset 1",
@@ -70,6 +69,7 @@ class InstallDialog(wx.Frame):
 
         self.button_close = wx.Button(self.panel, label="Close")
         self.button_close.Bind(wx.EVT_BUTTON, self.on_close)
+        self.button_close.Disable()
 
         box_button = wx.BoxSizer()
         box_button.Add((0, 0), 1)

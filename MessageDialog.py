@@ -10,8 +10,7 @@ class MessageDialog(wx.Frame):
         wx.Frame.__init__(self, parent, id, title,
                           wx.DefaultPosition,
                           size=(350, 180),
-                          style=wx.SYSTEM_MENU |
-                                wx.CLIP_CHILDREN)
+                          style=wx.SYSTEM_MENU | wx.CLIP_CHILDREN | wx.FRAME_NO_TASKBAR | wx.FRAME_FLOAT_ON_PARENT)
         icon = wx.Icon()
         icon.CopyFromBitmap(wx.Bitmap("icons/adi_logo.png", wx.BITMAP_TYPE_ANY))
         self.SetIcon(icon)
