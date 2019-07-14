@@ -423,10 +423,10 @@ class AssetItem(object):
 
     @property
     def installed_time_str(self):
-        if self.installed_time == datetime.min:
-            return ""
-        else:
+        if self.installed_time != datetime.min:
             return f"{self.installed_time:%Y-%m-%d %H:%M}"
+        else:
+            return ""
 
     @property
     def imported_time_str(self):
