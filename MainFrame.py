@@ -39,7 +39,7 @@ class MainFrame(wx.Frame):
         self.create_logger()
 
         sys.excepthook = self.excepthook
-        logging.info("------------ ADI Vgit" + self.version + " Started")
+        logging.info("------------ ADI V" + self.version + " Started")
 
         self.assets = AssetList(self)
         self.queue = QueueList(self)
