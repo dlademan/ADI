@@ -28,7 +28,7 @@ class MainFrame(wx.Frame):
     parent, id, title
     """
 
-    version = "1.5.0"
+    version = "1.5.1"
     logger = logging.getLogger()
 
     def __init__(self, parent, id, title):
