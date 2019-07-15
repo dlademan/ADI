@@ -16,7 +16,7 @@ class AssetList(object):
         self.parent = parent
         self.name = name
         self.clear = clear
-        self.path = parent.config.library / Path(self.name)
+        self.path = parent.config.get_config_path() / Path(self.name)
         self.list = self.load()  # list of AssetItems
         self.sort_method = None
         self.sort_descending = False

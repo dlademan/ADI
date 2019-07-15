@@ -1,3 +1,6 @@
+V 1.5.3
+    - Changed default assets.pkl location to user folder folder
+
 V 1.5.2
     - Removed intentional error (yes...)
     - Added version number to startup in log

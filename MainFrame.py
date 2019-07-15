@@ -28,7 +28,7 @@ class MainFrame(wx.Frame):
     parent, id, title
     """
 
-    version = "1.5.2"
+    version = "1.5.3"
     logger = logging.getLogger()
 
     def __init__(self, parent, id, title):
@@ -104,13 +104,12 @@ class MainFrame(wx.Frame):
         if not hasattr(self.config, "version") or self.config.version != self.version:
             dialog = MessageDialog(parent=self, message="Upgrading database...")
 
-            logging.info("Upgrading database...")
+            logging.info("Upgrading database")
             self.config = Config(self, self.config)
             for i, asset in enumerate(self.assets.list):
                 self.assets.list[i] = AssetItem(other=asset)
 
             self.config.version = self.version
-            self.config.save_dimensions()
 
             dialog.on_close()
 
