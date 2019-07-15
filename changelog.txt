@@ -1,3 +1,7 @@
+V 1.5.2
+    - Removed intentional error (yes...)
+    - Added version number to startup in log
+
 V 1.5.1
     - Fixed logging
 

@@ -28,7 +28,7 @@ class MainFrame(wx.Frame):
     parent, id, title
     """
 
-    version = "1.5.1"
+    version = "1.5.2"
     logger = logging.getLogger()
 
     def __init__(self, parent, id, title):
@@ -39,14 +39,13 @@ class MainFrame(wx.Frame):
         self.create_logger()
 
         sys.excepthook = self.excepthook
-        logging.info("------------ ADI Started")
+        logging.info("------------ ADI Vgit" + self.version + " Started")
 
         self.assets = AssetList(self)
         self.queue = QueueList(self)
         if self.config.clear_queue and not self.queue.in_progress:
             self.queue.clear_list()
 
-        error.test()
         self.check_version()
         self.create_menubar()
         self.create_toolbar()
