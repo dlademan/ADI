@@ -1,3 +1,4 @@
+import traceback
 from datetime import datetime
 from pathlib import Path
 from threading import Thread
@@ -28,6 +29,7 @@ class MainFrame(wx.Frame):
     """
 
     version = "1.5.0"
+    logger = logging.getLogger()
 
     def __init__(self, parent, id, title):
         wx.Frame.__init__(self, parent, id, title, wx.DefaultPosition, (1300, 800), style=wx.DEFAULT_FRAME_STYLE)
@@ -36,7 +38,7 @@ class MainFrame(wx.Frame):
         self.config = Config(self)
         self.create_logger()
 
-        # sys.excepthook = self.excepthook
+        sys.excepthook = self.excepthook
         logging.info("------------ ADI Started")
 
         self.assets = AssetList(self)
@@ -44,6 +46,7 @@ class MainFrame(wx.Frame):
         if self.config.clear_queue and not self.queue.in_progress:
             self.queue.clear_list()
 
+        error.test()
         self.check_version()
         self.create_menubar()
         self.create_toolbar()
@@ -101,8 +104,6 @@ class MainFrame(wx.Frame):
     def check_version(self):
         if not hasattr(self.config, "version") or self.config.version != self.version:
             dialog = MessageDialog(parent=self, message="Upgrading database...")
-            # detect_thread = Thread(target=self.database_upgrade_worker, args=[dialog])
-            # detect_thread.start()
 
             logging.info("Upgrading database...")
             self.config = Config(self, self.config)
@@ -1092,7 +1093,6 @@ class MainFrame(wx.Frame):
         self.splitter.SplitVertically(self.panel_left, self.panel_right)
 
     def create_logger(self):
-        self.logger = logging.getLogger()
         self.logger.setLevel(logging.DEBUG)
         self.logger.propagate = False
 
@@ -1113,6 +1113,11 @@ class MainFrame(wx.Frame):
             handler_console.setFormatter(formatter)
             # then add it back
             self.logger.addHandler(handler_console)
+
+        fh = logging.FileHandler(self.config.get_config_path() / Path('log.txt'))
+        fh.setLevel(logging.DEBUG)
+        fh.setFormatter(formatter)
+        self.logger.addHandler(fh)
 
         if not self.config.get_config_path().exists():
             self.config.get_config_path().mkdir(parents=True)
@@ -1152,12 +1157,9 @@ class MainFrame(wx.Frame):
             pass
 
     @staticmethod
-    def excepthook(exctype, value, tb):
-        logging.critical('Exception Thrown')
-        logging.critical('Type: ' + str(exctype))
-        logging.critical('Value: ' + str(value))
-        logging.critical('File: ' + str(tb.tb_frame.f_code.co_filename))
-        logging.critical('Line: ' + str(tb.tb_lineno))
+    def excepthook(*exc_info):
+        text = "".join(traceback.format_exception(*exc_info))
+        logging.exception("\nUnhandled exception: %s", text)
 
     @staticmethod
     def get_folder_size(start_path='.'):

@@ -1,3 +1,6 @@
+V 1.5.1
+    - Fixed logging
+
 V 1.5.0
     - Added an option to detect installed assets on start of ADI
     - Disabled Close button in InstallDialog to closing before process is complete
