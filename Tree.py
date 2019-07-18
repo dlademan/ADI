@@ -117,27 +117,23 @@ class ZipTree(wx.TreeCtrl):
         self.populate(rootNode)
         self.file.close()
 
-    def populate(self, rootNode, pick=False):
-        if not pick:
-            infolist = self.file.infolist()
-        else:
-            infolist = self.file
+    def populate(self, rootNode):
+        infolist = self.file.infolist()
 
         if len(infolist) < 1: return
 
         node_list = []
         for file in infolist:
-            if not pick:
-                file_name = file.filename
-                file_is_dir = file.is_dir()
-            else:
-                file_name = file
-                file_is_dir = False
+            file_name = file.filename
             split = str(file_name).split("/")
-            if len(split) <= 2:
+            logging.debug(file_name)
+            logging.debug(split)
+            if len(split) == 1:
+                node_list.append(self.AppendItem(rootNode, file_name))
+            elif len(split) <= 2 and split[1] == '':
                 node_list.append(self.AppendItem(rootNode, file_name))
             else:
-                if file_is_dir:
+                if file.is_dir():
                     offset = -2
                 else:
                     offset = -1
@@ -147,14 +143,10 @@ class ZipTree(wx.TreeCtrl):
                 for part in split: parentStr += part + "/"
 
                 for i in range(len(node_list)):
-                    if pick:
-                        if parentStr == infolist[i]:
-                            node_list.append(self.AppendItem(node_list[i], str(file_name).split("/")[offset]))
-                            break
-                    else:
-                        if parentStr == infolist[i].filename:
-                            node_list.append(self.AppendItem(node_list[i], str(file_name).split("/")[offset]))
-                            break
+                    if parentStr == infolist[i].filename:
+                        node_list.append(self.AppendItem(node_list[i], str(file_name).split("/")[offset]))
+                        break
+
         for node in node_list:
             self.SortChildren(node)
 
@@ -167,9 +159,9 @@ class ZipTree(wx.TreeCtrl):
                 self.file = ZipFile(path)
             except:
                 logging.error("Error occurred while opening zip file: " + str(path.name))
-                return "error"
+                return
 
-            self.populate(rootNode, False)
+            self.populate(rootNode)
             self.file.close()
 
     def OnCompareItems(self, item1, item2):

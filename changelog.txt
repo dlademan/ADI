@@ -1,5 +1,9 @@
+V 1.5.4
+    - Changed structure of distributed zip to comply with renderosity
+        - Changed show_readme to use Documents folder
+
 V 1.5.3
-    - Changed default assets.pkl location to user folder folder
+    - Changed default assets.pkl location to user folder
 
 V 1.5.2
     - Removed intentional error (yes...)

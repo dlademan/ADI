@@ -137,7 +137,7 @@ class MainFrame(wx.Frame):
         if path_readme.exists():
             os.startfile(path_readme)
         else:
-            os.startfile(Path.cwd().parent / Path('Readme_.txt'))
+            os.startfile(Path.cwd().parent / 'Documents' / Path('Readme_.txt'))
 
     def show_log(self, event=None):
         logging.debug("Show log")
