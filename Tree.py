@@ -117,26 +117,25 @@ class ZipTree(wx.TreeCtrl):
         self.populate(rootNode)
         self.file.close()
 
-    def populate(self, root_node):
+    def populate(self, node_root):
         list_info = self.file.infolist()
-        dict_nodes = {}
+        dict_nodes = dict()
+        dict_nodes[''] = node_root
 
-        for i, item in enumerate(list_info):
-            string_filename = item.filename
-            parts = string_filename.split('/')
-
+        for item in list_info:
+            parts = item.filename.split('/')
             node_current = ""
-            for j, part in enumerate(parts):
+
+            for part in parts:
                 if part == '': continue
 
                 node_parent = node_current
                 node_current += '/' + part
-                if node_current not in dict_nodes and j == 0:
-                    dict_nodes[node_current] = self.AppendItem(root_node, part)
-                elif node_current not in dict_nodes:
+
+                if node_current not in dict_nodes:
                     dict_nodes[node_current] = self.AppendItem(dict_nodes[node_parent], part)
 
-        for item in dict_nodes:
+        for item in dict_nodes.values():
             self.SortChildren(item)
 
     def remake(self, path=None):
