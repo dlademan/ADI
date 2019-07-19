@@ -117,38 +117,27 @@ class ZipTree(wx.TreeCtrl):
         self.populate(rootNode)
         self.file.close()
 
-    def populate(self, rootNode):
-        infolist = self.file.infolist()
+    def populate(self, root_node):
+        list_info = self.file.infolist()
+        dict_nodes = {}
 
-        if len(infolist) < 1: return
+        for i, item in enumerate(list_info):
+            string_filename = item.filename
+            parts = string_filename.split('/')
 
-        node_list = []
-        for file in infolist:
-            file_name = file.filename
-            split = str(file_name).split("/")
-            logging.debug(file_name)
-            logging.debug(split)
-            if len(split) == 1:
-                node_list.append(self.AppendItem(rootNode, file_name))
-            elif len(split) <= 2 and split[1] == '':
-                node_list.append(self.AppendItem(rootNode, file_name))
-            else:
-                if file.is_dir():
-                    offset = -2
-                else:
-                    offset = -1
-                split = split[:offset]
+            node_current = ""
+            for j, part in enumerate(parts):
+                if part == '': continue
 
-                parentStr = ""
-                for part in split: parentStr += part + "/"
+                node_parent = node_current
+                node_current += '/' + part
+                if node_current not in dict_nodes and j == 0:
+                    dict_nodes[node_current] = self.AppendItem(root_node, part)
+                elif node_current not in dict_nodes:
+                    dict_nodes[node_current] = self.AppendItem(dict_nodes[node_parent], part)
 
-                for i in range(len(node_list)):
-                    if parentStr == infolist[i].filename:
-                        node_list.append(self.AppendItem(node_list[i], str(file_name).split("/")[offset]))
-                        break
-
-        for node in node_list:
-            self.SortChildren(node)
+        for item in dict_nodes:
+            self.SortChildren(item)
 
     def remake(self, path=None):
         self.DeleteAllItems()
