@@ -175,12 +175,12 @@ class MainFrame(wx.Frame):
 
         asset.install(self, self.config.library, gauge=dialog.gauges[0])
         self.assets.save()
+        dialog.button_close.Enable()
 
         if self.config.close_dialog:
             dialog.on_close(event)
 
         self.update_all()
-        dialog.button_close.Enable()
         self.enable_frame()
         self.sound_action_complete()
 
@@ -197,12 +197,12 @@ class MainFrame(wx.Frame):
         dialog.button_close.Disable()
         asset.uninstall(self, self.config.library, gauge=dialog.gauges[0])
         self.assets.save()
+        dialog.button_close.Enable()
 
         if self.config.close_dialog:
             dialog.on_close(event)
 
         self.update_all()
-        dialog.button_close.Enable()
         self.enable_frame()
         self.sound_action_complete()
 
