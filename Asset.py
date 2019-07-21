@@ -329,7 +329,7 @@ class AssetItem(object):
 
             if not dest.parent.exists():
                 try:
-                    Path.mkdir(dest.parent)
+                    Path.mkdir(dest.parent, parents=True)
                 except OSError as e:
                     logging.error("Parent folder creation - " + str(e))
 

@@ -176,11 +176,12 @@ class MainFrame(wx.Frame):
         asset.install(self, self.config.library, gauge=dialog.gauges[0])
         self.assets.save()
 
+        dialog.button_close.Enable()
+
         if self.config.close_dialog:
             dialog.on_close(event)
 
         self.update_all()
-        dialog.button_close.Enable()
         self.enable_frame()
         self.sound_action_complete()
 
@@ -198,11 +199,12 @@ class MainFrame(wx.Frame):
         asset.uninstall(self, self.config.library, gauge=dialog.gauges[0])
         self.assets.save()
 
+        dialog.button_close.Enable()
+
         if self.config.close_dialog:
             dialog.on_close(event)
 
         self.update_all()
-        dialog.button_close.Enable()
         self.enable_frame()
         self.sound_action_complete()
 
@@ -347,20 +349,22 @@ class MainFrame(wx.Frame):
         self.ctrl_queue.DeleteAllItems()
         self.queue.clear_list()
 
-    def queue_append(self, asset, process):
+    def queue_append(self, list_assets, process):
         self.right_notebook.SetSelection(1)
-        for queueItem in self.queue.list:
-            if asset.file_name == queueItem.asset.file_name and queueItem.status == 0:
-                logging.warning(asset.product_name + " already queued for process, nothing added to queue")
-                return
 
-        if process:
-            logging.info("Added " + asset.product_name + " to queue to be installed.")
-        else:
-            logging.info("Added " + asset.product_name + " to queue to be uninstalled.")
+        for asset in list_assets:
+            for queue_item in self.queue.list:
+                if list_assets.file_name == queue_item.asset.file_name and queue_item.status == 0:
+                    logging.warning(list_assets.product_name + " already queued for process, nothing added to queue")
+                    return
 
-        self.queue.append(asset, process)
-        self.update_queue()
+            if process:
+                logging.info("Added " + list_assets.product_name + " to queue to be installed.")
+            else:
+                logging.info("Added " + list_assets.product_name + " to queue to be uninstalled.")
+
+            self.queue.append(asset, process)
+            self.update_queue()
 
     def queue_append_list(self, assetList, process):
         for asset in assetList:
@@ -487,6 +491,7 @@ class MainFrame(wx.Frame):
     def on_idle(self, event):
         self.config.win_size = self.GetSize().Get()
         self.config.win_pos = self.GetPosition().Get()
+        self.on_update_details()
         event.Skip()
 
     def open_directory(self, event, path=None):
@@ -561,70 +566,6 @@ class MainFrame(wx.Frame):
         clean_thread = Thread(target=self.assets.clean())
         clean_thread.start()
 
-    def on_list_sel(self, event):
-        item = event.GetItem()
-        self.selected = asset = self.assets.get_item(product_name=event.GetItem().GetText())
-        if asset is None: return
-        count = self.ctrl_asset.GetSelectedItemCount()
-
-
-        if count == 1:
-            self.label_filename.Enable()
-            self.label_filename.SetLabel(asset.zip.name)
-            self.label_name.Enable()
-            self.label_name.SetLabel(asset.product_name)
-            if asset.zip.exists():
-                self.tree_zip.remake(asset.zip)
-            else:
-                self.tree_zip.remake()
-
-            if asset.zip.exists():
-                self.label_size.SetLabel('Size: ' + asset.size_display)
-                self.label_zip.SetLabel('Zip: Exists')
-            else:
-                self.label_size.SetLabel('Size: N/A')
-                self.label_zip.Disable()
-
-            if asset.installed:
-                self.button1.SetLabel("Queue Uninstall")
-                self.button2.SetLabel("Uninstall")
-                self.label_installed.SetLabel('Installed: True')
-                self.button1.Enable()
-                self.button2.Enable()
-            elif asset.zip.exists() and not asset.installed:
-                self.button1.SetLabel("Queue Install")
-                self.button2.SetLabel("Install")
-                self.label_installed.SetLabel('Installed: False')
-                self.button1.Enable()
-                self.button2.Enable()
-            elif not asset.installed and not asset.zip.exists():
-                self.button1.SetLabel("Can't Queue")
-                self.button2.SetLabel("Can't Install")
-                self.button1.Disable()
-                self.button2.Disable()
-
-            self.label_name.SetLabel(item.GetText())
-            self.label_path.SetLabel(str(asset.path.parent))
-
-        elif count > 1:
-            selected = [self.ctrl_asset.GetFirstSelected()]
-            self.selected = []
-            for i in range(count - 1):
-                selected.append(self.ctrl_asset.GetNextSelected(selected[i]))
-            for item in selected:
-                product_name = self.ctrl_asset.GetItemText(item, 0)
-                for asset in self.assets.list:
-                    if product_name == asset.product_name:
-                        self.selected.append(asset)
-
-            self.label_name.SetLabel(str(count) + " assets selected")
-            self.label_path.SetLabel("")
-            self.label_zip.SetLabel("")
-            self.label_size.SetLabel("")
-            self.label_installed.SetLabel("")
-            self.button1.Disable()
-            self.button2.Disable()
-
     def on_list_context(self, event):
         item = event.GetItem()
         popup_menu = wx.Menu()
@@ -632,7 +573,8 @@ class MainFrame(wx.Frame):
         count = self.ctrl_asset.GetSelectedItemCount()
 
         if count == 1:
-            self.selected = asset = self.assets.get_item(product_name=event.GetItem().GetText())
+            asset = self.assets.get_item(product_name=event.GetItem().GetText())
+            self.selected = [asset]
             if asset is None: return
 
             if asset.installed:
@@ -674,85 +616,146 @@ class MainFrame(wx.Frame):
         self.helper_menu_option(event, popup_menu, 'Refresh', self.on_refresh)
         self.PopupMenu(popup_menu, event.GetPoint())
 
-    def on_tree_sel(self, event):
-        # Get the selected item object
-        item = event.GetItem()
-        count = len(self.tree_library.GetSelections())
-
-        if count > 1:
-            self.selected = self.tree_library.GetSelections()
-        elif self.tree_library.GetItemData(item).path.is_dir():
-            self.selected = self.tree_library.GetItemData(item)
-        else:
-            self.selected = self.assets.get_item(self.tree_library.GetItemData(item).file_name)
+    def on_list_sel(self, event):
+        count = self.ctrl_asset.GetSelectedItemCount()
+        self.selected = []
 
         if count == 1:
-            ####
-            if self.selected.path.is_dir():
-                self.label_name.Enable()
-                self.label_installed.Disable()
-                self.label_zip.Disable()
-                self.label_name.SetLabel(self.selected.path.name)
-                self.label_path.Enable()
-                self.label_path.SetLabel(str(self.selected.path.parent))
-                self.label_size.SetLabel(str(self.get_folder_size(self.selected.path)))
-                return
-            else:
-                self.label_name.Enable()
-                self.label_filename.Enable()
-                self.label_zip.Enable()
-                self.label_installed.Enable()
-                self.label_size.Enable()
-                self.label_path.Enable()
-
-            self.label_name.SetLabel(self.selected.product_name)
-            self.label_filename.SetLabel(self.selected.file_name)
-            self.label_path.SetLabel(str(self.selected.path.parent))
-            if self.selected.zip.exists():
-                self.tree_zip.remake(self.selected.zip)
-            else:
-                self.tree_zip.remake()
-
-            if self.selected.zip.exists():
-                self.label_size.SetLabel('Size: ' + self.selected.size_display)
-                self.label_zip.SetLabel('Zip: Exists')
-            else:
-                self.label_size.SetLabel('Size: N/A')
-                self.label_zip.SetLabel('Zip: N/A')
-
-            if self.selected.installed:
-                self.label_installed.SetLabel('Installed: True')
-            else:
-                self.label_installed.SetLabel('Installed: False')
-            ####
-            if self.selected.installed:
-                self.button1.SetLabel('Queue Uninstall')
-                self.button1.Enable()
-                self.button2.SetLabel('Uninstall')
-                self.button2.Enable()
-            elif not self.selected.installed:
-                self.button1.SetLabel('Queue Install')
-                self.button1.Enable()
-                self.button2.SetLabel('Install')
-                self.button2.Enable()
-            else:
-                self.button1.Disable()
-                self.button2.Disable()
+            product_name = event.GetItem().GetText()
+            self.selected = [self.assets.get_item(product_name=product_name)]
+            if self.selected is None: return
         elif count > 1:
-            #
-            self.label_name.SetLabel(str(count) + " selected")
-            self.label_filename.Disable()
-            self.label_path.Disable()
-            #self.label_path.SetLabel(str(self.tree_library.GetItemData(self.selected[0]).path))
-            self.label_zip.Disable()
-            self.label_installed.Disable()
-            self.label_size.Disable()
+            items = [self.ctrl_asset.GetFirstSelected()]
+            self.selected = []
 
+            for i in range(count - 1):
+                items.append(self.ctrl_asset.GetNextSelected(items[i]))
 
-            self.panel_right.Layout()
+            for item in items:
+                product_name = self.ctrl_asset.GetItemText(item, 0)
+                asset = self.assets.get_item(product_name=product_name)
+                self.selected.append(asset)
 
+    def on_tree_sel(self, event):
+        # Get the selected item object
+        selected = self.tree_library.GetSelections()
+        count = len(selected)
+        self.selected = []
 
-        self.panel_right.Layout()
+        if count > 0:
+            for item in selected:
+                asset = None
+                product_name = self.tree_library.GetItemText(item)
+                asset = self.assets.get_item(product_name=product_name)
+                if asset is None: asset = self.tree_library.GetItemData(item)
+                self.selected.append(asset)
+
+    def on_update_details(self):
+        # defaulting details to blank
+        product_name = ''
+        path_to = ''
+        filename = ''
+        size = ''
+        installed = ''
+        zip_exist = ''
+
+        all_dir = True
+        all_file = True
+        changed = False
+
+        for item in self.selected:
+            if not item.path.is_dir():
+                all_dir = False
+            else:
+                all_file = False
+
+        if len(self.selected) == 1:
+            asset = self.selected[0]
+            self.label_name.Enable()
+            self.label_path.Enable()
+            self.label_filename.Enable()
+            self.label_size.Enable()
+            self.label_installed.Enable()
+            self.label_zip.Enable()
+
+            if all_file:
+                product_name = asset.product_name
+                path_to = str(asset.path.parent)
+                filename = asset.file_name
+                size = 'Size: ' + asset.size_display
+                installed = 'Installed: ' + asset.installed_str
+                zip_exist = 'Zip: ' + asset.zip_str
+            elif all_dir:
+                product_name = asset.path.name
+                filename = str(self.get_file_count(asset.path)) + ' assets in directory'
+                path_to = str(asset.path.parent)
+                size = 'Total Size: ' + self.format_size(self.get_folder_size(asset.path))
+            else:
+                product_name = 'Directories and Assets Selected'
+
+        elif len(self.selected) > 1:
+
+            if all_dir:
+                product_name = str(len(self.selected)) + ' folders selected'
+                path_to = str(self.selected[0].path.parent)
+                filename = 0
+                size = 0
+
+                for asset in self.selected:
+                    size += self.get_folder_size(asset.path)
+                    filename += self.get_file_count(asset.path)
+                    if path_to != str(asset.path.parent): path_to = 'Multiple Locations'
+
+                filename = str(filename) + ' total assets in directories'
+                size = 'Size: ' + self.format_size(size)
+
+            elif all_file:
+                size = 0
+                product_name = str(len(self.selected)) + ' assets selected'
+                path_to = str(self.selected[0].path.parent)
+
+                for asset in self.selected:
+                    size += asset.size_raw
+                    if path_to != str(asset.path.parent):
+                        path_to = 'Multiple Locations'
+
+                size = 'Size: ' + self.format_size(size)
+
+            else:
+                product_name = 'Directories and Assets Selected'
+
+        if self.label_name.GetLabelText() != product_name:
+            self.label_name.SetLabel(product_name)
+            logging.debug('Setting label_name to: ' + product_name)
+            changed = True
+
+        if self.label_path.GetLabelText() != path_to:
+            self.label_path.SetLabel(path_to)
+            logging.debug('Setting label_path to: ' + path_to)
+            changed = True
+
+        if self.label_filename.GetLabelText() != filename:
+            self.label_filename.SetLabel(filename)
+            logging.debug('Setting label_filename to: ' + filename)
+            changed = True
+
+        if self.label_size.GetLabelText() != size:
+            self.label_size.SetLabel(size)
+            logging.debug('Setting label_size to: ' + size)
+            changed = True
+
+        if self.label_installed.GetLabelText() != installed:
+            self.label_installed.SetLabel(installed)
+            logging.debug('Setting label_installed to: ' + installed)
+            changed = True
+
+        if self.label_zip.GetLabelText() != zip_exist:
+            self.label_zip.SetLabel(zip_exist)
+            logging.debug('Setting label_zip to: ' + zip_exist)
+            changed = True
+
+        if changed:
+            logging.info('Finished updating details --------')
 
     def on_tree_context(self, event):
         # Get TreeItemData
@@ -765,8 +768,10 @@ class MainFrame(wx.Frame):
         count = len(self.tree_library.GetSelections())
 
         if count == 1:
-            self.selected = asset = self.assets.get_item(self.tree_library.GetItemText(item))
+            asset = self.assets.get_item(self.tree_library.GetItemText(item))
             if asset is None: self.selected = asset = self.tree_library.GetItemData(item)
+            self.selected = [asset]
+
 
             if not asset.path.is_dir():
 
@@ -812,10 +817,8 @@ class MainFrame(wx.Frame):
             self.selected = []
 
             for item in selected:
-                product_name = self.tree_library.GetItemText(item)
-                for asset in self.assets.list:
-                    if product_name == asset.product_name:
-                        self.selected.append(asset)
+                str_item = self.tree_library.GetItemText(item)
+                asset = self.assets.get_item(product_name=str_item)
 
             self.helper_menu_option(event, popup_menu, 'Queue selected to be Installed',
                                     self.queue_append_list, self.selected, True)
@@ -838,6 +841,12 @@ class MainFrame(wx.Frame):
         popup_menu = wx.Menu() # create menu
         self.helper_menu_option(event, popup_menu, 'Refresh', self.on_refresh) # add refresh menu option
         self.PopupMenu(popup_menu, event.GetPoint())  # show menu at cursor
+
+    def update_tree_details(self):
+        pass
+
+    def update_list_details(self):
+        pass
 
     def create_menubar(self):
         logging.info("Creating Menubar")
@@ -941,6 +950,8 @@ class MainFrame(wx.Frame):
         self.splitter = wx.SplitterWindow(self, -1)
         self.splitter.SetSashGravity(0.5)
         self.splitter.SetSashInvisible()
+
+        self.selected = []
 
         # left panel for tree
         self.panel_left = wx.Panel(self.splitter, -1)
@@ -1160,15 +1171,28 @@ class MainFrame(wx.Frame):
         logging.exception("\nUnhandled exception: %s", text)
 
     @staticmethod
-    def get_folder_size(start_path='.'):
+    def get_folder_size(path='.'):
         size = 0
-        rnd = 2 * 10
-        for dirpath, dirnames, filenames in os.walk(start_path):
+
+        for dirpath, dirnames, filenames in os.walk(path):
             for f in filenames:
                 fp = os.path.join(dirpath, f)
                 # skip if it is symbolic link
                 if not os.path.islink(fp):
                     size += os.path.getsize(fp)
+
+        return size
+
+    @staticmethod
+    def get_file_count(path=None):
+        if isinstance(path, Path):
+            return sum([len(filenames) for dirpaths, dirnames, filenames in os.walk(path)])
+
+        return 0
+
+    @staticmethod
+    def format_size(size=0):
+        rnd = 2 * 10
 
         if size > 2 ** 30:
             size /= 2 ** 30
