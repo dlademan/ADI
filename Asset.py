@@ -191,7 +191,7 @@ class AssetItem(object):
                 self.file_list = []
 
             if self.zip.exists():
-                self.product_name = self._parse_product_name()
+                self.product_name = self.parse_product_name(self.zip)
             else:
                 self.product_name = path.stem
 
@@ -206,10 +206,6 @@ class AssetItem(object):
 
     def __lt__(self, other):
         return self.product_name < other.product_name
-
-    # def copy_constructor(self, other):
-
-
 
     def _calc_size(self, places=2):
         if not self.path.exists() and self.path.is_dir():
@@ -228,17 +224,17 @@ class AssetItem(object):
 
         return self.path.stat().st_size, str(int(size * rnd) / rnd) + ' ' + self._size_ext
 
-    def _parse_product_name(self):
-        product_name = self.path.stem
+    @staticmethod
+    def parse_product_name(path_zip=None):
+        product_name = path_zip.stem
 
         try:
-            zf = ZipFile(self.zip, 'r')
+            zf = ZipFile(path_zip, 'r')
         except:
-            logging.error("Error occurred while opening zip file: " + str(self.file_name))
+            logging.error("Error occurred while opening zip file: " + str(path_zip.name))
             return "INVALID ZIP"
 
         if 'Supplement.dsx' in zf.namelist():
-            zf = ZipFile(self.zip, 'r')
             zf.extract("Supplement.dsx", path='.')
             Tree = etree.parse("Supplement.dsx")
             supplement = Tree.getroot()
