@@ -54,8 +54,12 @@ class FolderTree(wx.TreeCtrl):
                 node_parent = node_current
                 node_current += '/' + part
 
+                product_name = part
+                if path.with_suffix('.zip').exists() and part == parts[-1]:
+                    product_name = AssetItem.parse_product_name(path.with_suffix('.zip'))
+
                 if node_current not in dict_nodes:
-                    dict_nodes[node_current] = self.AppendItem(dict_nodes[node_parent], part, data=path)
+                    dict_nodes[node_current] = self.AppendItem(dict_nodes[node_parent], product_name, data=path)
 
         for node in dict_nodes.values(): self.SortChildren(node)
         if self.main.config.expand: self.ExpandAll()
