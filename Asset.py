@@ -40,10 +40,7 @@ class AssetList(object):
             pickle.dump(self.list, out)
 
     def append(self, path, installed=False):
-        """ Appends an asset to the list of imported assets
-        :args: path, installed=False
-        :rtype: AssetItem
-        """
+
         entry = AssetItem(path, installed)
         for item in self.list:
             if entry.file_name == item.file_name:

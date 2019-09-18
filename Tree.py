@@ -30,6 +30,7 @@ class FolderTree(wx.TreeCtrl):
         self.DeleteAllItems()
         root = self.main.config.archive
         logging.info('Building library tree')
+        term = self._strip_product_name(self.main.textctrl_filter.GetLineText(0))
         dict_nodes = dict()
         list_paths = []
 
@@ -48,9 +49,17 @@ class FolderTree(wx.TreeCtrl):
             parts = str(parts).split('\\')
             node_current = ''
 
+            asset = self.main.assets.get_item(file_name=path.name)
+            if asset is None: asset = AssetItem(path)
+
+            if term not in asset.product_name and term not in asset.tags: continue
+            if self.filter_installed and not asset.installed: continue
+            if self.filter_not_installed and asset.installed: continue
+            if self.filter_zip and not asset.zip.exists(): continue
+
             for part in parts:
-                if part == '' or (not path.with_suffix('.zip').exists() and not path.is_dir()):
-                    continue
+                if part == '' or (not path.with_suffix('.zip').exists() and not path.is_dir()): continue
+
                 node_parent = node_current
                 node_current += '/' + part
 

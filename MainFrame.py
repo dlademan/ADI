@@ -404,7 +404,7 @@ class MainFrame(wx.Frame):
             self.ctrl_queue.SetItem(i, 3, item.status_str)
 
     def update_library_tree(self, event=None):
-        self.tree_library.make()
+        self.tree_library.populate()
         self.update_all()
 
     def on_quit(self, event):
@@ -535,7 +535,7 @@ class MainFrame(wx.Frame):
         refresh_thread.start()
 
     def on_refresh_worker(self, dialog):
-        self.tree_library.make()
+        self.tree_library.populate()
         self.update_all()
         dialog.on_close()
         self.enable_frame()
@@ -552,7 +552,7 @@ class MainFrame(wx.Frame):
         logging.info("Removing stored asset info and reimporting")
         self.assets = AssetList(self, clear=True)
         dialog.text_message.SetLabel("Reimporting assets...")
-        self.tree_library.make()
+        self.tree_library.populate()
 
         detect_thread = Thread(target=self.detect_directory_worker, args=[None])
         dialog.text_message.SetLabel("Detecting assets...")
@@ -569,13 +569,12 @@ class MainFrame(wx.Frame):
     def on_list_context(self, event):
         item = event.GetItem()
         popup_menu = wx.Menu()
-
         count = self.ctrl_asset.GetSelectedItemCount()
 
         if count == 1:
             asset = self.assets.get_item(product_name=event.GetItem().GetText())
-            self.selected = [asset]
             if asset is None: return
+            self.selected = [asset]
 
             if asset.installed:
                 self.helper_menu_option(event, popup_menu, 'Uninstall',
@@ -617,13 +616,13 @@ class MainFrame(wx.Frame):
         self.PopupMenu(popup_menu, event.GetPoint())
 
     def on_list_sel(self, event):
+        item = event.GetItem
         count = self.ctrl_asset.GetSelectedItemCount()
         self.selected = []
 
         if count == 1:
-            product_name = event.GetItem().GetText()
+            product_name = product_name=event.GetItem().GetText()
             self.selected = [self.assets.get_item(product_name=product_name)]
-            if self.selected is None: return
         elif count > 1:
             items = [self.ctrl_asset.GetFirstSelected()]
             self.selected = []
@@ -642,13 +641,83 @@ class MainFrame(wx.Frame):
         count = len(selected)
         self.selected = []
 
-        if count > 0:
+        if count == 1:
             for item in selected:
-                asset = None
                 product_name = self.tree_library.GetItemText(item)
                 asset = self.assets.get_item(product_name=product_name)
-                if asset is None: asset = self.tree_library.GetItemData(item)
+                if asset is None: asset = AssetItem(self.tree_library.GetItemData(item))
                 self.selected.append(asset)
+
+    def on_tree_context(self, event):
+        # Get TreeItemData
+        item = event.GetItem()
+
+        # Create menu
+        popup_menu = wx.Menu()
+        force_menu = wx.Menu()
+
+        count = len(self.tree_library.GetSelections())
+
+        if count == 1:
+            asset = self.assets.get_item(product_name=self.tree_library.GetItemText(item))
+            if asset is None: asset = AssetItem(self.tree_library.GetItemData(item))
+            self.selected = [asset]
+
+            if not asset.path.is_dir():
+
+                if asset.installed:
+                    self.helper_menu_option(event, popup_menu, 'Uninstall',
+                                            self.on_asset_uninstall, event, asset)
+                    self.helper_menu_option(event, popup_menu, 'Queue Uninstall',
+                                            self.queue_append, asset, False)
+                    popup_menu.AppendSeparator()
+
+                elif not asset.installed and asset.zip.exists():
+                    self.helper_menu_option(event, popup_menu, 'Install',
+                                            self.on_asset_install, event, asset)
+                    self.helper_menu_option(event, popup_menu, 'Queue Install',
+                                            self.queue_append, asset, True)
+                    popup_menu.AppendSeparator()
+
+                # if not asset.path.is_dir():
+                #     self.helper_menu_option(event, force_menu, 'Install',
+                #                             self.on_asset_install, event, asset)
+                #     self.helper_menu_option(event, force_menu, 'Uninstall',
+                #                             self.on_asset_uninstall, event, asset)
+                #     popup_menu.AppendSubMenu(force_menu, '&Force')
+
+                if asset.zip.exists():
+                    self.helper_menu_option(event, popup_menu, 'Open File Location',
+                                            self.open_directory, event, asset.path)
+
+                self.helper_menu_option(event, popup_menu, 'Detect Asset', self.on_detect_asset, asset)
+            else:
+                self.helper_menu_option(event, popup_menu, 'Queue directory to be installed',
+                                        self.on_queue_directory, asset.path, True)
+                self.helper_menu_option(event, popup_menu, 'Queue directory to be uninstalled',
+                                        self.on_queue_directory, asset.path, False)
+                popup_menu.AppendSeparator()
+                self.helper_menu_option(event, popup_menu, 'Open Location',
+                                        self.open_directory, event, asset.path)
+                self.helper_menu_option(event, popup_menu, 'Detect assets in directory',
+                                        self.detect_directory, event, asset.path)
+
+        elif count > 1:
+            selected = self.tree_library.GetSelections()
+            self.selected = []
+
+            for item in selected:
+                str_item = self.tree_library.GetItemText(item)
+                asset = self.assets.get_item(product_name=str_item)
+
+            self.helper_menu_option(event, popup_menu, 'Queue selected to be Installed',
+                                    self.queue_append_list, self.selected, True)
+            self.helper_menu_option(event, popup_menu, 'Queue selected to be Uninstalled',
+                                    self.queue_append_list, self.selected, False)
+            popup_menu.AppendSeparator()
+
+        self.helper_menu_option(event, popup_menu, 'Refresh', self.on_refresh)
+        self.PopupMenu(popup_menu, event.GetPoint())  # show menu at cursor
 
     def on_update_details(self):
         # defaulting details to blank
@@ -756,78 +825,6 @@ class MainFrame(wx.Frame):
 
         if changed:
             logging.info('Finished updating details --------')
-
-    def on_tree_context(self, event):
-        # Get TreeItemData
-        item = event.GetItem()
-
-        # Create menu
-        popup_menu = wx.Menu()
-        force_menu = wx.Menu()
-
-        count = len(self.tree_library.GetSelections())
-
-        if count == 1:
-            asset = self.assets.get_item(self.tree_library.GetItemText(item))
-            if asset is None: self.selected = asset = self.tree_library.GetItemData(item)
-            self.selected = [asset]
-
-
-            if not asset.path.is_dir():
-
-                if asset.installed:
-                    self.helper_menu_option(event, popup_menu, 'Uninstall',
-                                            self.on_asset_uninstall, event, asset)
-                    self.helper_menu_option(event, popup_menu, 'Queue Uninstall',
-                                            self.queue_append, asset, False)
-                    popup_menu.AppendSeparator()
-
-                elif not asset.installed and asset.zip.exists():
-                    self.helper_menu_option(event, popup_menu, 'Install',
-                                            self.on_asset_install, event, asset)
-                    self.helper_menu_option(event, popup_menu, 'Queue Install',
-                                            self.queue_append, asset, True)
-                    popup_menu.AppendSeparator()
-
-                # if not asset.path.is_dir():
-                #     self.helper_menu_option(event, force_menu, 'Install',
-                #                             self.on_asset_install, event, asset)
-                #     self.helper_menu_option(event, force_menu, 'Uninstall',
-                #                             self.on_asset_uninstall, event, asset)
-                #     popup_menu.AppendSubMenu(force_menu, '&Force')
-
-                if asset.zip.exists():
-                    self.helper_menu_option(event, popup_menu, 'Open File Location',
-                                            self.open_directory, event, asset.path)
-
-                self.helper_menu_option(event, popup_menu, 'Detect Asset', self.on_detect_asset, asset)
-            else:
-                self.helper_menu_option(event, popup_menu, 'Queue directory to be installed',
-                                        self.on_queue_directory, asset.path, True)
-                self.helper_menu_option(event, popup_menu, 'Queue directory to be uninstalled',
-                                        self.on_queue_directory, asset.path, False)
-                popup_menu.AppendSeparator()
-                self.helper_menu_option(event, popup_menu, 'Open Location',
-                                        self.open_directory, event, asset.path)
-                self.helper_menu_option(event, popup_menu, 'Detect assets in directory',
-                                        self.detect_directory, event, asset.path)
-
-        elif count > 1:
-            selected = self.tree_library.GetSelections()
-            self.selected = []
-
-            for item in selected:
-                str_item = self.tree_library.GetItemText(item)
-                asset = self.assets.get_item(product_name=str_item)
-
-            self.helper_menu_option(event, popup_menu, 'Queue selected to be Installed',
-                                    self.queue_append_list, self.selected, True)
-            self.helper_menu_option(event, popup_menu, 'Queue selected to be Uninstalled',
-                                    self.queue_append_list, self.selected, False)
-            popup_menu.AppendSeparator()
-
-        self.helper_menu_option(event, popup_menu, 'Refresh', self.on_refresh)
-        self.PopupMenu(popup_menu, event.GetPoint())  # show menu at cursor
 
     def on_queue_context(self, event):
         item = event.GetItem()
